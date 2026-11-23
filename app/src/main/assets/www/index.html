@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>3D Arrhythmia Lab</title>
+<style>
+@font-face{font-family:'Barlow';font-weight:400;font-style:normal;font-display:swap;src:url(fonts/barlow-latin-400-normal.woff2) format('woff2')}
+@font-face{font-family:'Barlow';font-weight:500;font-style:normal;font-display:swap;src:url(fonts/barlow-latin-500-normal.woff2) format('woff2')}
+@font-face{font-family:'Barlow';font-weight:600;font-style:normal;font-display:swap;src:url(fonts/barlow-latin-600-normal.woff2) format('woff2')}
+@font-face{font-family:'Barlow Semi Condensed';font-weight:500;font-style:normal;font-display:swap;src:url(fonts/barlow-semi-condensed-latin-500-normal.woff2) format('woff2')}
+@font-face{font-family:'Barlow Semi Condensed';font-weight:600;font-style:normal;font-display:swap;src:url(fonts/barlow-semi-condensed-latin-600-normal.woff2) format('woff2')}
+@font-face{font-family:'Barlow Semi Condensed';font-weight:700;font-style:normal;font-display:swap;src:url(fonts/barlow-semi-condensed-latin-700-normal.woff2) format('woff2')}
+/* VOICE: calm, clinical teaching console for a final-year student
+   IDEA: an electrophysiology mapping station: 3D activation map above, ECG paper below
+   PICTURE: translucent heart, glowing conduction system, wavefront lighting muscle in step with the ECG
+   COLOUR and TYPE: dark lab stage, muscle crimson, conduction gold, pink ECG paper; Barlow Semi Condensed + Barlow
+   LAYOUT: rhythm picker, big stage with live readouts, two-lead strip, then teaching cards */
+:root{color-scheme:dark;--bg:#120a0c;--panel:#1a1013;--edge:#35242a;--ink:#f4ebe8;--mut:#b9a5a2;--gold:#f0b23c;--blk:#ff5757;--paper:#fcefea}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Barlow,system-ui,sans-serif;overflow-x:clip}
+h1,h2,h3,.cond{font-family:'Barlow Semi Condensed',Barlow,sans-serif}
+.wrap{max-width:1240px;margin:0 auto;padding:0 max(3vw,14px)}
+header{padding:24px 0 6px}
+h1{font-size:clamp(30px,4.2vw,46px);line-height:1.05;margin:0 0 8px;font-weight:700;text-wrap:balance}
+.sub{color:var(--mut);margin:0;max-width:72ch}
+.picker{display:flex;flex-wrap:wrap;gap:12px 22px;margin:18px 0 12px}
+.grp{display:flex;flex-direction:column;gap:6px}
+.grp b{font:600 13px 'Barlow Semi Condensed',sans-serif;color:var(--mut)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{min-height:40px;padding:7px 13px;border-radius:999px;border:1px solid var(--edge);background:#1d1316;color:var(--ink);font:500 15px Barlow,sans-serif;cursor:pointer}
+.chip:hover{border-color:#5a3c44}
+.chip[aria-pressed=true]{background:var(--gold);color:#251405;border-color:var(--gold);font-weight:600}
+button:focus-visible,input:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.tools{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin:6px 0 10px}
+.btn{min-height:44px;padding:0 16px;border-radius:10px;border:1px solid var(--edge);background:#1d1316;color:var(--ink);font:600 15px Barlow,sans-serif;cursor:pointer}
+.btn.main{background:#2d1a1f;color:var(--gold);min-width:92px}
+.seg{display:inline-flex;border:1px solid var(--edge);border-radius:10px;overflow:hidden}
+.seg button{min-height:44px;min-width:54px;background:#1d1316;color:var(--ink);border:0;border-right:1px solid var(--edge);font:500 15px Barlow,sans-serif;cursor:pointer}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed=true]{background:#3a2228;color:var(--gold);font-weight:600}
+.tl{font-size:14px;color:var(--mut);display:flex;align-items:center;gap:8px}
+input[type=range]{accent-color:var(--gold);width:110px;height:44px}
+.stage{position:relative;height:clamp(400px,62vh,720px);border-radius:16px;overflow:hidden;background:radial-gradient(110% 85% at 50% 42%,#2b1419 0%,#150b0e 58%,#0b0607 100%);border:1px solid #2a1a1f}
+#gl{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:pan-y;cursor:grab}
+#gl:active{cursor:grabbing}
+#labels{position:absolute;inset:0;pointer-events:none}
+.lab{position:absolute;left:0;top:0;font:600 12.5px 'Barlow Semi Condensed',sans-serif;color:#f7e5c4;background:#120a0cbf;padding:1px 6px;border-radius:5px;white-space:nowrap;will-change:transform}
+.lab.ch{color:#e9b9b5;background:none;font-size:15px;font-weight:700}
+.lab.x{color:#ffc0ea;border:1px solid #ff8ad866}
+.hud{position:absolute;top:12px;right:12px;display:grid;grid-template-columns:repeat(4,auto);gap:6px}
+.tile{background:#0e0708d9;border:1px solid #33222a;border-radius:10px;padding:5px 11px;text-align:right}
+.tile small{display:block;font:500 12.5px 'Barlow Semi Condensed',sans-serif;color:var(--mut);white-space:nowrap}
+.tile span{font:700 22px/1.15 'Barlow Semi Condensed',sans-serif;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tile.hr span{color:#ff8a72;font-size:28px}
+.cap{position:absolute;left:12px;bottom:12px;max-width:min(600px,calc(100% - 24px));background:#0e0708e6;border:1px solid #33222a;border-radius:12px;padding:10px 14px;font-size:15.5px;line-height:1.4;display:flex;gap:10px}
+.dot{width:10px;height:10px;border-radius:50%;flex:none;margin-top:6px;background:var(--gold)}
+.hint{position:absolute;left:14px;top:12px;font-size:13px;color:var(--mut)}
+.strip{position:relative;margin-top:12px;border-radius:12px;overflow:hidden;background:var(--paper);height:240px}
+.strip canvas{position:absolute;inset:0;width:100%;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;margin:12px 0 0;font-size:14px;color:var(--mut)}
+.legend i{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:-2px;margin-right:6px}
+.info{margin:28px 0 20px;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr) minmax(0,1fr);gap:16px}
+.info h2{grid-column:1/-1;font-size:clamp(26px,3vw,34px);line-height:1.1;margin:0}
+.mech{grid-column:1/-1;margin:-6px 0 0;font-size:17px;max-width:80ch;color:#eadad6}
+.card{background:var(--panel);border:1px solid #2c1d22;border-radius:14px;padding:16px 18px}
+.card h3{margin:0 0 8px;font-size:19px;color:var(--gold)}
+.card ol,.card ul{margin:0;padding-left:20px}
+.card li{margin:4px 0}
+.card p{margin:0 0 10px}
+.card .k{font:600 14px 'Barlow Semi Condensed',sans-serif;color:var(--mut);display:block}
+.pearl{border-left:3px solid var(--gold);padding-left:10px;color:#f6dfae}
+footer{color:#8d7a77;font-size:13.5px;padding:8px 0 34px}
+@media(max-width:900px){.info{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.info .c1{grid-column:1/-1}.hud{grid-template-columns:repeat(2,auto)}}
+@media(max-width:600px){.info{grid-template-columns:minmax(0,1fr)}.stage{height:440px}.tile span{font-size:18px}.tile.hr span{font-size:22px}.cap{font-size:14.5px}.hint{display:none}.lab{font-size:11.5px}.lab.ch{font-size:13px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+<h1>How the impulse travels: SA node to ventricles, in 17 rhythms</h1>
+<p class="sub">Pick a rhythm and watch the electrical wave move through a 3D heart while Lead II and V1 draw in step. Drag the heart to turn it. Slow motion is on so you can follow each wavefront.</p>
+</header>
+
+<nav class="picker" id="picker" aria-label="Rhythms"></nav>
+
+<div class="tools">
+<button class="btn main" id="play" type="button">Pause</button>
+<div class="seg" id="speed" role="group" aria-label="Speed">
+<button type="button" data-s="0.1">0.1×</button><button type="button" data-s="0.25" aria-pressed="true">0.25×</button><button type="button" data-s="0.5">0.5×</button><button type="button" data-s="1">1×</button>
+</div>
+<button class="btn" id="labBtn" type="button" aria-pressed="true">Labels on</button>
+<button class="btn" id="rotBtn" type="button" aria-pressed="true">Auto-turn on</button>
+<button class="btn" id="resetBtn" type="button">Reset view</button>
+<label class="tl" for="musc">Muscle <input id="musc" type="range" min="0" max="100" value="100"></label>
+</div>
+
+<div class="stage" id="stage">
+<canvas id="gl" aria-label="3D heart showing the electrical impulse"></canvas>
+<div id="labels"></div>
+<div class="hint">Drag to rotate</div>
+<div class="hud">
+<div class="tile hr"><small>Ventricular rate</small><span id="hr">—</span></div>
+<div class="tile"><small>Atrial rate</small><span id="ar">—</span></div>
+<div class="tile"><small>PR interval</small><span id="pr">—</span></div>
+<div class="tile"><small>QRS width</small><span id="qd">—</span></div>
+</div>
+<div class="cap" id="capBox" aria-live="polite"><span class="dot" id="capDot"></span><span id="cap">Loading the 3D heart…</span></div>
+</div>
+
+<div class="strip" id="strip"><canvas id="grid"></canvas><canvas id="ecg"></canvas></div>
+<div class="legend">
+<span><i style="background:#f0b23c"></i>Conduction system</span>
+<span><i style="background:#fff1b8"></i>Wavefront (depolarising now)</span>
+<span><i style="background:#c8452c"></i>Depolarised muscle (plateau)</span>
+<span><i style="background:#ff8ad8"></i>Ectopic focus / re-entry circuit</span>
+<span><i style="background:none;color:#ff5757;font-style:normal;font-weight:700;width:auto">✕</i>Conduction block</span>
+</div>
+
+<section class="info" id="info"></section>
+<footer>DoctorAG Educational Resources · teaching simulation, timings simplified for clarity. Drug doses follow Resuscitation Council UK 2021 adult guidance; always check local protocols.</footer>
+</div>
+
+<script src="three.min.js"></script>
+<script>
+{
+const $=s=>document.querySelector(s);
+if(!window.THREE){$('#cap').textContent='The 3D library could not load. Check your connection and reload the page.';}
+else{
+const V3=(x,y,z)=>new THREE.Vector3(x,y,z);
+const srand=(s=>()=>{s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296})(11);
+const rnd=Math.random;
+
+/* ---------- scene ---------- */
+const stage=$('#stage'),cvs=$('#gl');
+const renderer=new THREE.WebGLRenderer({canvas:cvs,antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(34,1,.1,100);
+const root=new THREE.Group(),heart=new THREE.Group();scene.add(root);root.add(heart);heart.position.y=-.35;
+scene.add(new THREE.HemisphereLight(0xffeee8,0x30080e,.8));
+const kl=new THREE.DirectionalLight(0xffffff,.85);kl.position.set(3,4,6);scene.add(kl);
+const rl=new THREE.DirectionalLight(0xff9a80,.7);rl.position.set(-5,2,-4);scene.add(rl);
+
+/* ---------- chambers ---------- */
+const meshes=[];
+const bump=(x,y,z)=>Math.sin(x*3.1+y*1.7)*Math.sin(y*2.3+z*2.9)*Math.sin(z*1.9+x*2.2);
+function chamber(name,kind,c,r,taper,tilt,col,op){
+  const g=new THREE.SphereGeometry(1,56,40),p=g.attributes.position,n=p.count,ca=Math.cos(tilt),sa=Math.sin(tilt);
+  for(let i=0;i<n;i++){let x=p.getX(i),y=p.getY(i),z=p.getZ(i);
+    if(y<0){const s=1+taper*y;x*=s;z*=s;}
+    const b=1+.035*bump(x*2,y*2,z*2);x*=r[0]*b;y*=r[1]*b;z*=r[2]*b;
+    p.setXYZ(i,x*ca-y*sa+c.x,x*sa+y*ca+c.y,z+c.z);}
+  g.computeVertexNormals();
+  g.setAttribute('color',new THREE.BufferAttribute(new Float32Array(n*3),3));
+  const bm=new THREE.MeshStandardMaterial({color:col,emissive:0x1a0306,roughness:.5,metalness:0,transparent:true,opacity:op,depthWrite:false});
+  const gm=new THREE.MeshBasicMaterial({vertexColors:true,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false});
+  const base=new THREE.Mesh(g,bm),glow=new THREE.Mesh(g,gm);base.renderOrder=2;glow.renderOrder=3;heart.add(base,glow);
+  const o={name,kind,g,n,op,bm,gm,rest:Float32Array.from(p.array),last:new Float64Array(n).fill(-99),k:new Float32Array(n),center:c.clone(),pending:[],dead:null};
+  meshes.push(o);return o;}
+const LV=chamber('LV','v',V3(.35,-.45,-.15),[.85,1.35,.85],.6,.4,0x7c1620,.42);
+const RV=chamber('RV','v',V3(-.32,-.3,.32),[.8,1.05,.62],.55,.4,0x8c1f2b,.38);
+const RA=chamber('RA','a',V3(-.88,.85,.12),[.58,.55,.55],.1,0,0x9a2a36,.36);
+const RAA=chamber('RAA','a',V3(-.6,1.12,.6),[.28,.2,.22],.3,.6,0x9a2a36,.36);
+const LA=chamber('LA','a',V3(.5,.98,-.5),[.62,.45,.5],.1,0,0x8a2430,.36);
+const LAA=chamber('LAA','a',V3(.98,.78,.15),[.25,.18,.2],.3,-.6,0x8a2430,.36);
+const V=[LV,RV],RAs=[RA,RAA],LAs=[LA,LAA],ATR=[RA,RAA,LA,LAA];
+const vpos=(m,i)=>V3(m.rest[i*3],m.rest[i*3+1],m.rest[i*3+2]);
+function extreme(m,dir){dir=dir.clone().normalize();let bi=0,bd=-1e9;for(let i=0;i<m.n;i++){const d=vpos(m,i).sub(m.center).dot(dir);if(d>bd){bd=d;bi=i;}}return vpos(m,bi);}
+
+function vessel(pts,r,col,op){const m=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),48,r,20,false),new THREE.MeshStandardMaterial({color:col,roughness:.6,transparent:true,opacity:op,depthWrite:false}));m.renderOrder=1;heart.add(m);}
+vessel([V3(-.9,2.5,.05),V3(-.88,1.9,.08),V3(-.86,1.3,.12)],.2,0x5a3a7a,.5);
+vessel([V3(-.85,.45,-.15),V3(-.9,-.1,-.35),V3(-.95,-.6,-.5)],.22,0x5a3a7a,.42);
+vessel([V3(.05,.35,.05),V3(0,1.3,.15),V3(.1,2.05,.1),V3(.55,2.35,-.3),V3(.95,2,-.75),V3(1,1,-.95)],.24,0xc4454a,.5);
+vessel([V3(-.15,.25,.6),V3(.05,1,.75),V3(.35,1.6,.45),V3(.62,1.75,.05)],.22,0x6b4c93,.45);
+
+/* ---------- conduction system ---------- */
+const P={SA:V3(-.8,1.3,.32),AV:V3(-.22,.4,.02),HB:V3(-.02,.12,.06),LBs:V3(.1,.04,0),LAin:V3(.55,1.05,-.05),
+  septL:V3(.05,-.35,.05),septR:V3(-.08,-.35,.15),APa:V3(.85,.62,-.3),APv:V3(.95,.2,-.2),A2:V3(-.5,.62,0),ESC:V3(-.12,-.75,.22)};
+const tubes={},GOLD=[.62,.42,.12];
+function tube(name,pts,r,tub=40,closed=false){
+  const curve=new THREE.CatmullRomCurve3(pts,closed),g=new THREE.TubeGeometry(curve,tub,r,8,closed),n=g.attributes.position.count;
+  g.setAttribute('color',new THREE.BufferAttribute(new Float32Array(n*3),3));
+  const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({vertexColors:true}));heart.add(m);
+  return tubes[name]={name,curve,g,m,rows:tub+1,last:new Float64Array(tub+1).fill(-99),pending:[],items:[],spark:r>.012?.2:.11};}
+tube('in1',[P.SA,V3(-.55,1.05,.45),V3(-.35,.7,.25),P.AV],.017);
+tube('in2',[P.SA,V3(-.7,.9,.15),V3(-.4,.6,.05),P.AV],.017);
+tube('in3',[P.SA,V3(-1.05,.95,-.05),V3(-.8,.5,-.15),V3(-.45,.38,-.1),P.AV],.017);
+tube('bach',[P.SA,V3(-.5,1.25,.25),V3(0,1.25,0),V3(.4,1.15,-.12),P.LAin],.02);
+tube('his',[P.AV,V3(-.12,.28,.04),P.HB],.032,20);
+tube('lbb',[P.HB,V3(.05,.08,.03),P.LBs],.03,12);
+tube('laf',[P.LBs,V3(.3,-.35,.25),V3(.55,-.85,.3),V3(.72,-1.25,.2)],.022);
+tube('lpf',[P.LBs,V3(.3,-.35,-.35),V3(.55,-.9,-.4),V3(.75,-1.3,-.25)],.022);
+tube('rbb',[P.HB,V3(-.08,-.25,.2),V3(-.15,-.7,.3),V3(-.15,-1,.32)],.022);
+tube('mod',[V3(-.15,-1,.32),V3(-.45,-.88,.5),V3(-.85,-.65,.45)],.018,20);
+const purkL=[],purkR=[];
+const T_IN=.04,T_BACH=.03,T_HIS=.012,T_LBB=.006,T_FASC=.018,T_RBB=.024,T_MOD=.01,T_PURK=.01,VA=15,VN=14,VS=13,VE=15;
+function mkPurk(arr,mesh,n,starts,filt,pre){let tries=0;
+  while(arr.length<n&&tries++<6000){const v=vpos(mesh,Math.floor(srand()*mesh.n));if(!filt(v))continue;
+    const end=v.clone().lerp(mesh.center,.16);let best=starts[0],bd=1e9;
+    for(const s of starts){const d=s.p.distanceTo(end);if(d<bd){bd=d;best=s;}}
+    const mid=best.p.clone().lerp(end,.5).add(V3((srand()-.5)*.16,(srand()-.5)*.16,(srand()-.5)*.16));
+    const name=pre+arr.length;tube(name,[best.p,mid,end],.009,14);arr.push({name,end,d:best.d});}}
+mkPurk(purkL,LV,16,[{p:tubes.laf.curve.getPointAt(1),d:T_FASC},{p:tubes.lpf.curve.getPointAt(1),d:T_FASC},{p:tubes.laf.curve.getPointAt(.55),d:T_FASC*.55},{p:tubes.lpf.curve.getPointAt(.55),d:T_FASC*.55}],v=>v.y<-.25,'pl');
+mkPurk(purkR,RV,12,[{p:tubes.rbb.curve.getPointAt(1),d:T_RBB},{p:tubes.mod.curve.getPointAt(1),d:T_RBB+T_MOD},{p:tubes.rbb.curve.getPointAt(.6),d:T_RBB*.6}],v=>v.y<-.1&&v.x<-.15,'pr');
+
+/* extras: accessory pathway, flutter ring, dual AV-nodal pathways, scar circuit */
+tube('AP',[P.APa,V3(.98,.4,-.25),P.APv],.026,20);
+function ringPts(c,n,r,k=32){n=n.clone().normalize();const u=V3(0,0,1).cross(n).normalize(),w=n.clone().cross(u),a=[];
+  for(let i=0;i<k;i++){const t=i/k*Math.PI*2;a.push(c.clone().add(u.clone().multiplyScalar(r*Math.cos(t))).add(w.clone().multiplyScalar(r*Math.sin(t))));}return{a,u,w};}
+const FL={c:V3(-.72,.5,.22),n:V3(.45,-.75,.5).normalize()},FLP=.2;
+const flr=ringPts(FL.c,FL.n,.36);tube('flring',flr.a,.03,64,true);
+function flPhase(p){const d=p.clone().sub(FL.c);return((Math.atan2(d.dot(flr.w),d.dot(flr.u))/(Math.PI*2))+1)%1;}
+for(const o of RAs){o.flph=new Float32Array(o.n);for(let i=0;i<o.n;i++)o.flph[i]=flPhase(vpos(o,i));}
+const flAV=flPhase(P.AV);
+tube('slow',[P.A2,V3(-.6,.45,-.12),V3(-.42,.32,-.1),P.AV],.022,30);
+tube('fast',[P.AV,V3(-.26,.56,.12),V3(-.42,.68,.08),P.A2],.022,30);
+const S0=extreme(LV,V3(.75,-.55,.55)),nS=S0.clone().sub(LV.center).normalize();
+LV.dead=new Uint8Array(LV.n);for(let i=0;i<LV.n;i++)if(vpos(LV,i).distanceTo(S0)<.17)LV.dead[i]=1;
+const scar=new THREE.Mesh(new THREE.SphereGeometry(.2,24,16),new THREE.MeshStandardMaterial({color:0x4a4446,roughness:.9,transparent:true,opacity:.92}));
+scar.scale.set(1,1,.28);scar.position.copy(S0.clone().addScaledVector(nS,-.02));scar.quaternion.setFromUnitVectors(V3(0,0,1),nS);scar.renderOrder=4;heart.add(scar);
+const vtr=ringPts(S0.clone().addScaledVector(nS,-.03),nS,.3,28);tube('vtring',vtr.a,.026,56,true);
+P.VTX=vtr.a[0].clone();const VTP=.34;
+P.FOC=extreme(LV,V3(.3,-.2,1)).lerp(LV.center,.06);
+
+/* nodes */
+const nodes={};
+function node(name,p,r,sc,col){const m=new THREE.Mesh(new THREE.SphereGeometry(r,20,14),new THREE.MeshBasicMaterial({color:0xffffff}));m.position.copy(p);if(sc)m.scale.set(...sc);heart.add(m);nodes[name]={m,fires:[],holds:[],col,sc:sc||[1,1,1]};}
+node('SA',P.SA,.075,null,GOLD);node('AV',P.AV,.07,[1.5,.8,1],GOLD);node('FOC',P.FOC,.07,null,[.75,.25,.6]);node('ESC',P.ESC,.07,null,[.75,.25,.6]);
+
+/* sprites */
+function tex(draw){const c=document.createElement('canvas');c.width=c.height=64;draw(c.getContext('2d'));return new THREE.CanvasTexture(c);}
+const sparkT=tex(g=>{const r=g.createRadialGradient(32,32,0,32,32,32);r.addColorStop(0,'rgba(255,255,240,1)');r.addColorStop(.25,'rgba(255,220,120,.9)');r.addColorStop(1,'rgba(255,150,40,0)');g.fillStyle=r;g.fillRect(0,0,64,64);});
+const xT=tex(g=>{g.strokeStyle='#ff4a4a';g.lineWidth=10;g.lineCap='round';g.shadowColor='#ff2020';g.shadowBlur=8;g.beginPath();g.moveTo(16,16);g.lineTo(48,48);g.moveTo(48,16);g.lineTo(16,48);g.stroke();});
+function pool(n,t,add){const a=[];for(let i=0;i<n;i++){const s=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,depthTest:false,depthWrite:false,blending:add?THREE.AdditiveBlending:THREE.NormalBlending}));s.visible=false;s.renderOrder=9;heart.add(s);a.push(s);}return a;}
+const sparks=pool(80,sparkT,true),xs=pool(8,xT,false);
+
+/* ---------- ECG morphologies (offset s, width s, mV) ---------- */
+const MP={P:{II:[[.05,.022,.15]],V1:[[.035,.016,.08],[.075,.016,-.06]]},Pret:{II:[[.04,.02,-.14]],V1:[[.04,.02,.07]]}};
+const MORPH={
+ N:{II:[[.012,.006,-.08],[.036,.009,1.1],[.058,.008,-.25]],V1:[[.018,.007,.22],[.048,.011,-.9]],qt:.3,tw:.05,t:[.32,.1],dur:.08},
+ RBBB:{II:[[.012,.006,-.06],[.036,.01,.9],[.078,.02,-.35]],V1:[[.018,.007,.3],[.046,.01,-.45],[.092,.014,.85]],qt:.33,tw:.055,t:[.22,-.22],dur:.13},
+ LBBB:{II:[[.04,.022,.65],[.098,.02,.72]],V1:[[.02,.008,.08],[.075,.03,-1.25]],qt:.36,tw:.06,t:[-.28,.34],dur:.14},
+ WPW:{II:[[.035,.024,.32],[.09,.011,.95],[.112,.009,-.18]],V1:[[.035,.024,.22],[.09,.012,.75],[.115,.01,-.12]],qt:.33,tw:.05,t:[.18,.1],dur:.13},
+ PVC:{II:[[.045,.03,1.35],[.115,.025,-.3]],V1:[[.05,.032,1.05],[.12,.02,-.15]],qt:.35,tw:.065,t:[-.5,-.4],dur:.15},
+ VT:{II:[[.05,.035,1.2],[.13,.03,-.35]],V1:[[.05,.035,1],[.13,.03,-.25]],qt:.33,tw:.06,t:[-.4,-.3],dur:.16},
+ ESC:{II:[[.05,.03,.8],[.12,.03,.35]],V1:[[.03,.01,.1],[.08,.035,-1.1]],qt:.38,tw:.07,t:[-.35,.3],dur:.16}};
+
+/* ---------- engine state ---------- */
+let now=0,playing=true,speed=.25,cur=null,st=null;
+let comps=[],labels2=[],caps=[],blocks=[],qT=[],pT=[],prs=[],qd=[];
+function resetState(){st={c:[],k:0,avRef:-9,vRef:-9,f0:null};
+  for(const o of meshes){o.pending=[];o.last.fill(-99);}
+  for(const k in tubes){const o=tubes[k];o.pending=[];o.items=[];o.last.fill(-99);}
+  for(const k in nodes){nodes[k].fires=[];nodes[k].holds=[];}
+  comps=[];labels2=[];caps=[];blocks=[];qT=[];pT=[];prs=[];qd=[];}
+function addPending(o,idx,ts,refr){if(!idx.length)return;let mn=Infinity,mx=-Infinity;for(const t of ts){if(t<mn)mn=t;if(t>mx)mx=t;}
+  o.pending.push({idx:Int32Array.from(idx),t:Float64Array.from(ts),tp:-Infinity,tmin:mn,tmax:mx,refr});}
+function process(o){const L=o.last;o.pending=o.pending.filter(q=>{if(q.tmin>now)return true;const tp=q.tp;
+  for(let k=0;k<q.idx.length;k++){const t=q.t[k];if(t>tp&&t<=now){const i=q.idx[k];if(t-L[i]>q.refr)L[i]=t;}}q.tp=now;return q.tmax>now;});}
+function muscle(list,src,refr){for(const o of list){const s=src.filter(x=>!x.only||x.only===o.name);if(!s.length)continue;
+  const R=o.rest,dead=cur.id==='vt'?o.dead:null,idx=[],ts=[];
+  for(let i=0;i<o.n;i++){if(dead&&dead[i])continue;const x=R[i*3],y=R[i*3+1],z=R[i*3+2];let b=Infinity;
+    for(const q of s){const d=Math.hypot(x-q.p.x,y-q.p.y,z-q.p.z);if(q.rad&&d>q.rad)continue;const t=q.t0+d/q.v;if(t<b)b=t;}
+    if(b<Infinity){idx.push(i);ts.push(b);}}
+  addPending(o,idx,ts,refr);}}
+function tubeAct(name,t0,dur,dir=1,stop=1){const o=tubes[name];o.items.push({t0,dur,dir,stop});const idx=[],ts=[];
+  for(let k=0;k<o.rows;k++){const u=k/(o.rows-1),d=dir>0?u:1-u;if(d>stop+1e-6)continue;idx.push(k);ts.push(t0+d*dur);}addPending(o,idx,ts,0);}
+const fire=(n,t)=>nodes[n].fires.push(t),hold=(n,a,b)=>nodes[n].holds.push({a,b});
+const block=(p,t,s=1)=>blocks.push({p:p.clone(),t,s});
+const cap=(t,text,tag)=>caps.push({t,text,tag});
+const mark=(t,text,col)=>labels2.push({t,text,col});
+function addM(t,m){for(const[o,w,a]of m.II)comps.push({L:0,c:t+o,w,a});for(const[o,w,a]of m.V1)comps.push({L:1,c:t+o,w,a});}
+function qrs(t,k,o={}){const m=MORPH[k];addM(t,m);const rr=Math.min(1.4,Math.max(.3,o.rr??cur.rr)),s=Math.sqrt(rr/.8),tc=t+m.qt*s;
+  comps.push({L:0,c:tc,w:m.tw*s,a:m.t[0]},{L:1,c:tc,w:m.tw*s,a:m.t[1]});qT.push(t);qd.push({t,d:m.dur});
+  if(o.tP!=null)prs.push({t,pr:t-o.tP});
+  if(!o.noTcap&&rr>=.6)cap(tc-.06,'Ventricles repolarise → T wave','r');}
+
+/* ---------- conduction building blocks ---------- */
+function sinus(t,o={}){fire('SA',t);tubeAct('in1',t,T_IN);tubeAct('in2',t,T_IN*1.08);tubeAct('in3',t,T_IN*1.15);tubeAct('bach',t,T_BACH);
+  muscle(RAs,[{p:P.SA,t0:t,v:VA}],.12);muscle(LAs,[{p:P.LAin,t0:t+T_BACH,v:VA}],.12);
+  if(!o.noP){addM(t,MP.P);pT.push(t);if(cur.pl)mark(t+.05,'P','#8a3b3b');}
+  cap(t,o.cap||'SA node fires → wave spreads over both atria → P wave','a');return t+T_IN;}
+function conduct(tAV,o={}){
+  if(tAV<st.avRef){block(P.AV,tAV,o.quiet?.6:1);if(!o.quiet)cap(tAV,o.capBlock||'Impulse reaches a refractory AV node → blocked, no QRS','b');return null;}
+  const d=o.av??.09;st.avRef=tAV+(o.avRefr??.36);hold('AV',tAV,tAV+d);
+  cap(tAV,o.capAV||`AV node delays the impulse ~${Math.round(d*1000)} ms → PR segment`,'n');
+  if(o.blockHis){const tb=tAV+d;tubeAct('his',tb,T_HIS*2,1,.5);block(tubes.his.curve.getPointAt(.5),tb+T_HIS);
+    cap(tb,o.capHis||'Impulse dies suddenly in the His bundle → P wave with no QRS','b');return null;}
+  return ventricles(tAV+d,o);}
+const VCAP={N:'His → bundle branches → Purkinje fibres: ventricles depolarise almost together → narrow QRS',
+ RBBB:'Right bundle blocked: LV fires first, RV is reached late across the septum → wide QRS, RSR′ in V1',
+ LBBB:'Left bundle blocked: RV first, septum right→left, LV activated slowly → wide notched QRS',
+ WPW:'Normal impulse arrives via His–Purkinje and merges with the pre-excited wave (fusion QRS)'};
+function ventricles(tH,o={}){const m=o.vmode||'N';
+  if(tH<st.vRef){if(!o.quiet){block(P.HB,tH);cap(tH,'Ventricles still refractory → impulse blocked','b');}return null;}
+  const tB=tH+T_HIS,tOn=m==='WPW'?o.pre:tH+T_HIS+T_LBB+.006,sL=[],sR=[];
+  tubeAct('his',tH,T_HIS);
+  if(m==='LBBB'){tubeAct('lbb',tB,T_LBB*2.5,1,.45);block(tubes.lbb.curve.getPointAt(.45),tB+T_LBB);sL.push({p:P.septR,t0:tB+T_RBB*.8,v:VS});}
+  else{tubeAct('lbb',tB,T_LBB);const tf=tB+T_LBB;tubeAct('laf',tf,T_FASC);tubeAct('lpf',tf,T_FASC);sL.push({p:P.septL,t0:tf,v:VN});
+    for(const k of purkL){tubeAct(k.name,tf+k.d,T_PURK);sL.push({p:k.end,t0:tf+k.d+T_PURK,v:VN});}}
+  if(m==='RBBB'){tubeAct('rbb',tB,T_RBB,1,.35);block(tubes.rbb.curve.getPointAt(.35),tB+T_RBB*.35);sR.push({p:P.septR,t0:tOn+.035,v:VS});}
+  else{tubeAct('rbb',tB,T_RBB);tubeAct('mod',tB+T_RBB,T_MOD);sR.push({p:P.septR,t0:tB+T_RBB*.7,v:VN});
+    for(const k of purkR){tubeAct(k.name,tB+k.d,T_PURK);sR.push({p:k.end,t0:tB+k.d+T_PURK,v:VN});}}
+  if(m==='WPW')sL.push({p:P.APv,t0:o.pre,v:7});
+  muscle([LV],sL,.25);muscle([RV],sR,.25);
+  qrs(tOn,m,o);st.vRef=tOn+.25;cap(tH,o.capV||VCAP[m],'v');return tOn;}
+function ectopic(t,p,kind,o={}){if(o.node)fire(o.node,t);muscle(V,[{p,t0:t,v:VE}],.25);qrs(t,kind,o);st.vRef=t+.25;
+  if(o.retro)st.avRef=Math.max(st.avRef,t+.45);if(o.cap)cap(t,o.cap,'e');}
+function flutterLap(t){tubeAct('flring',t,FLP);
+  for(const o of RAs){const idx=[],ts=[];for(let i=0;i<o.n;i++){idx.push(i);ts.push(t+o.flph[i]*FLP);}addPending(o,idx,ts,.1);}
+  muscle(LAs,[{p:P.LAin,t0:t+.09,v:VA}],.1);pT.push(t);
+  cap(t,'Re-entry wave laps the tricuspid ring (~300/min) → one saw-tooth F wave per lap','a');
+  conduct(t+flAV*FLP+.01,{av:.1,avRefr:.3,capAV:'This flutter wave gets through the AV node…',capBlock:'Next F wave meets a refractory AV node → blocked (2:1 conduction)'});}
+function junctional(t){fire('AV',t);for(const[n,f]of[['in1',1],['in2',1.08],['in3',1.15]])tubeAct(n,t+.005,T_IN*f,-1);
+  muscle(ATR,[{p:P.AV,t0:t+.01,v:VA}],.12);addM(t+.01,MP.Pret);
+  cap(t,'AV junction fires as pacemaker: impulse goes up to the atria (inverted P) and down to the ventricles','n');
+  ventricles(t+.07,{capV:'Normal His–Purkinje spread → narrow QRS just after the inverted P'});}
+function avnrtLap(t){tubeAct('slow',t,.27);cap(t,'Impulse runs down the SLOW AV-nodal pathway','n');const a=t+.27;fire('AV',a);
+  ventricles(a+.004,{rr:.33,noTcap:true,capV:'Bottom of the loop exits to His–Purkinje → narrow QRS'});
+  tubeAct('fast',a,.06);const r=a+.06;muscle(ATR,[{p:P.A2,t0:r,v:VA}],.12);addM(r,MP.Pret);
+  cap(r,'…and straight back up the FAST pathway → retrograde P hidden just after the QRS; loop repeats','a');}
+
+/* ---------- rhythm library ---------- */
+const AFb=(t,L)=>(L?1.7:1)*.045*(Math.sin(t*33.3)+.7*Math.sin(t*44.6+1)+.5*Math.sin(t*39+2))*(1+.3*Math.sin(t*.7));
+const FLb=(t,L)=>{if(st.f0==null||t<st.f0)return 0;const ph=((t-st.f0)/FLP)%1;
+  if(L)return .12*Math.exp(-(((ph-.3)/.08)**2)/2);return .16-(ph<.75?.34*ph/.75:.34*(1-(ph-.75)/.25));};
+const VFb=(t,L)=>{const m=.6+.4*Math.sin(t*.9);return L?.42*m*(Math.sin(t*28+1)+.6*Math.sin(t*41.5)+.4*Math.sin(t*22+2.2)):.48*m*(Math.sin(t*30.2)+.6*Math.sin(t*39.6+.5)+.4*Math.sin(t*23.2+1.3));};
+const R={
+nsr:{name:'Normal sinus rhythm',rr:.8,gens:[t=>{conduct(sinus(t),{tP:t});return .8;}],
+ mech:'The SA node depolarises 60–100 times a minute and every impulse travels the full normal pathway.',
+ path:['SA node fires (RA wall, at the SVC junction)','Wave spreads through RA; Bachmann’s bundle carries it to LA → P wave','Internodal tracts converge on the AV node','AV node slows it ~0.1 s so the atria finish emptying → PR segment','Bundle of His → right and left bundles; septum depolarises left→right first','Purkinje fibres fire the endocardium → near-simultaneous ventricular activation → narrow QRS','Ventricles repolarise → T wave'],
+ ecg:['Rate 60–100/min, regular','Upright P in II before every QRS','PR 0.12–0.20 s, constant','QRS < 0.12 s'],
+ causes:'Normal.',mx:'None needed.',pearl:'Rate ≈ 300 ÷ number of big squares between R waves (at 25 mm/s).'},
+brady:{name:'Sinus bradycardia',rr:1.35,gens:[t=>{conduct(sinus(t),{tP:t});return 1.35;}],
+ mech:'Normal pathway, but the SA node fires slower than 60/min.',
+ path:['Same pathway as sinus rhythm','Longer pause between beats (long TP segment)'],
+ ecg:['Rate < 60/min, regular','Normal P–QRS–T, normal PR'],
+ causes:'Athletes, sleep, vagal stimulation, β-blockers/digoxin/verapamil, hypothyroidism, hypothermia, raised ICP, inferior MI, sick sinus syndrome.',
+ mx:'Treat only if symptomatic or adverse features: atropine 500 µg IV, repeat to a maximum of 3 mg; then transcutaneous pacing or adrenaline/isoprenaline infusion. Stop offending drugs.',
+ pearl:'Bradycardia + hypertension + irregular breathing = Cushing’s triad (raised ICP).'},
+tachy:{name:'Sinus tachycardia',rr:.5,gens:[t=>{conduct(sinus(t),{tP:t,av:.075});return .5;}],
+ mech:'Normal pathway; the SA node fires faster than 100/min under sympathetic drive.',
+ path:['Same pathway, shorter cycle','The next P creeps toward the preceding T wave'],
+ ecg:['Rate 100 to ~150/min (max ≈ 220 − age)','Normal P before each QRS','Gradual onset and offset'],
+ causes:'Fever, pain, anxiety, exercise, hypovolaemia/bleeding, anaemia, sepsis, PE, thyrotoxicosis, heart failure, drugs (salbutamol, caffeine).',
+ mx:'Treat the cause. Never cardiovert sinus tachycardia.',pearl:'Sinus tachycardia is the commonest ECG finding in pulmonary embolism.'},
+af:{name:'Atrial fibrillation',rr:.55,atext:'350–600',prText:'none',base:AFb,
+ gens:[t=>{for(let j=0;j<2;j++){const m=ATR[Math.floor(rnd()*4)];muscle(ATR,[{p:vpos(m,Math.floor(rnd()*m.n)),t0:t+rnd()*.02,v:3.2,rad:.5}],.1);}return .03;},
+  t=>{fire('AV',t);conduct(t,{av:.05+rnd()*.03,avRefr:.26+rnd()*.32,quiet:true,capAV:'One of hundreds of chaotic impulses slips through the AV node'});return .1+rnd()*.09;}],
+ mech:'Many chaotic re-entrant wavelets (often triggered from the pulmonary veins) depolarise the atria at 350–600/min. There is no organised atrial contraction.',
+ path:['SA node is overridden: no single wavefront','Random wavelets bombard the AV node','AV node blocks most of them (refractory / concealed conduction)','A few get through at random intervals → irregularly irregular ventricular rhythm','Conducted beats use normal His–Purkinje → narrow QRS'],
+ ecg:['No P waves; fibrillatory baseline (best in V1)','Irregularly irregular R–R intervals','Narrow QRS unless BBB/aberrancy','Untreated ventricular rate usually 100–180'],
+ causes:'Hypertension, IHD, rheumatic mitral valve disease, heart failure, thyrotoxicosis, alcohol, sepsis, PE, post-operative.',
+ mx:'Unstable → synchronised DC cardioversion. Stable: rate control (β-blocker, diltiazem/verapamil, digoxin) or rhythm control (cardioversion, amiodarone or flecainide) if onset < 48 h or after anticoagulation. Anticoagulate by CHA₂DS₂-VASc (DOAC; warfarin for moderate–severe mitral stenosis or mechanical valve).',
+ pearl:'Stasis in the left atrial appendage → thrombus → stroke. Loss of “atrial kick” cuts cardiac output.'},
+flutter:{name:'Atrial flutter (2:1)',rr:.4,prText:'—',base:FLb,extras:['flring'],gens:[t=>{if(st.f0==null)st.f0=t;flutterLap(t);return FLP;}],
+ mech:'A single macro re-entry circuit spins around the tricuspid annulus, through the cavotricuspid isthmus, at about 300/min.',
+ path:['Wavefront circles the tricuspid ring (counter-clockwise in typical flutter)','Each lap activates the atria → one F wave','AV node cannot conduct 300/min → every second wave is blocked (2:1)','Conducted beats travel normal His–Purkinje → narrow QRS at ~150/min'],
+ ecg:['Saw-tooth F waves ~300/min, best in II, III, aVF','No flat baseline between F waves','Regular ventricular rate: 150 (2:1), 100 (3:1), 75 (4:1)','Narrow QRS'],
+ causes:'As for AF; also COPD and after cardiac surgery.',mx:'As for AF: rate control, cardioversion, anticoagulation. Cavotricuspid isthmus ablation is curative in > 90%.',
+ pearl:'A regular narrow tachycardia at exactly 150/min: think flutter with 2:1 block.'},
+junc:{name:'Junctional rhythm',rr:1.2,atext:'retrograde',prText:'< 0.12 s',gens:[t=>{junctional(t);return 1.2;}],
+ mech:'The SA node fails or slows, so the AV junction takes over as pacemaker at its intrinsic 40–60/min.',
+ path:['Impulse starts in the AV junction','Down: His–Purkinje → narrow QRS','Up: into the atria from below → inverted P','So the P′ sits just before, inside or after the QRS'],
+ ecg:['Rate 40–60/min (accelerated junctional 60–100)','Narrow QRS','P absent, or inverted in II/III/aVF with PR < 0.12 s'],
+ causes:'Sick sinus syndrome, digoxin toxicity, inferior MI, myocarditis, after cardiac surgery, high vagal tone.',
+ mx:'Treat the cause (stop digoxin, correct electrolytes); atropine or pacing if symptomatic.',
+ pearl:'Retrograde P waves are inverted in the inferior leads because the atria depolarise bottom-to-top.'},
+avnrt:{name:'AVNRT (SVT)',rr:.33,atext:'1:1 retrograde',prText:'—',extras:['slow','fast'],gens:[t=>{avnrtLap(t);return .33;}],
+ mech:'The AV node has a slow pathway (short refractory period) and a fast pathway (long refractory period). A premature beat goes down the slow one and returns up the fast one, creating a tiny re-entry loop inside the AV node.',
+ path:['Impulse runs down the slow pathway','At the bottom it exits to His–Purkinje → narrow QRS','At the same time it returns up the fast pathway','Retrograde atrial activation → P′ hidden in or just after the QRS','It re-enters the slow pathway and the loop repeats (~180/min)'],
+ ecg:['Regular narrow-complex tachycardia 140–250/min','P waves hidden, or pseudo-S in II / pseudo-r′ in V1','Abrupt onset and offset'],
+ causes:'Commonest SVT in structurally normal hearts; often young women. Triggers: caffeine, alcohol, stress.',
+ mx:'Unstable → synchronised DC cardioversion. Stable: vagal manoeuvres (modified Valsalva), then adenosine 6 mg rapid IV → 12 mg → 18 mg; verapamil if asthmatic. Recurrent → slow-pathway ablation.',
+ pearl:'Adenosine works by briefly blocking the AV node, which is an essential limb of this circuit.'},
+wpw:{name:'WPW pre-excitation',rr:.85,extras:['AP'],
+ gens:[t=>{const a=sinus(t);tubeAct('AP',t+.069,.011);cap(t+.069,'Impulse races down the accessory pathway, skipping the AV-node delay','e');
+  cap(t+.085,'Pre-excited LV base depolarises slowly, muscle-to-muscle → delta wave','e');conduct(a,{tP:t,vmode:'WPW',pre:t+.08});mark(t+.11,'δ','#9a3a3a');return .85;}],
+ mech:'An accessory pathway (bundle of Kent) bridges atrium and ventricle and bypasses the AV-node delay, so part of the ventricle is excited early.',
+ path:['SA node fires; atria depolarise normally','Impulse enters both the AV node (slow) and the accessory pathway (fast)','Pathway pre-excites the LV base slowly → delta wave','The normal His–Purkinje impulse then activates the rest → fusion QRS'],
+ ecg:['Short PR < 0.12 s','Delta wave: slurred QRS upstroke','Broad QRS > 0.11 s with secondary ST–T change','Left-sided (type A) pathway: positive delta in V1'],
+ causes:'Congenital; associated with Ebstein’s anomaly and HCM.',
+ mx:'Orthodromic AVRT: vagal manoeuvres/adenosine. Pre-excited AF: avoid AV-node blockers (adenosine, verapamil, digoxin, β-blockers); use DC cardioversion or procainamide/flecainide. Definitive: catheter ablation of the pathway.',
+ pearl:'AF + WPW + an AV-node blocker can conduct 1:1 down the pathway → VF.'},
+av1:{name:'1st-degree AV block',rr:.9,pl:true,gens:[t=>{conduct(sinus(t),{tP:t,av:.26,avRefr:.4,capAV:'AV node holds the impulse far too long → PR > 0.20 s'});return .9;}],
+ mech:'Every impulse is conducted, but the AV node holds it longer than normal.',
+ path:['SA → atria normally (P wave)','Prolonged AV-nodal delay: watch the node glow longer','Then normal His–Purkinje → narrow QRS'],
+ ecg:['PR > 0.20 s (one big square), constant','Every P is followed by a QRS'],
+ causes:'High vagal tone/athletes, drugs (β-blockers, CCB, digoxin, amiodarone), inferior MI, myocarditis, acute rheumatic fever, Lyme disease, hypokalaemia, age-related fibrosis.',
+ mx:'Usually none; review drugs.',pearl:'Prolonged PR is a minor Jones criterion for acute rheumatic fever.'},
+mob1:{name:'Mobitz I (Wenckebach)',rr:.8,pl:true,
+ gens:[t=>{const k=st.k++%4,a=sinus(t);
+  if(k<3)conduct(a,{tP:t,av:[.09,.2,.27][k],avRefr:.15,capAV:['AV delay normal (beat 1)','AV delay longer (beat 2)…','AV delay longer still (beat 3)…'][k]});
+  else{block(P.AV,a+.03);cap(a+.01,'AV node fails to conduct → P wave with no QRS (dropped beat); node recovers','b');mark(t+.22,'dropped','#c42222');}return .8;}],
+ mech:'AV-nodal cells tire: each impulse arrives earlier in their recovery, so the delay grows until one is not conducted. The cycle then resets.',
+ path:['Beat 1: normal AV delay','Beat 2: longer delay','Beat 3: longer still','Beat 4: blocked in the AV node → P with no QRS','Node recovers → cycle repeats (here 4:3)'],
+ ecg:['Progressive PR prolongation, then a dropped QRS','PR shortest after the pause','R–R shortens before the drop: group beating','Usually narrow QRS'],
+ causes:'Inferior MI (AV-nodal artery from RCA), drugs (β-blockers, digoxin, CCB), high vagal tone, myocarditis.',
+ mx:'Usually benign: observe. Atropine if symptomatic; pacing rarely needed.',pearl:'Longer, longer, longer, drop: then you have a Wenckebach.'},
+mob2:{name:'Mobitz II',rr:.8,pl:true,
+ gens:[t=>{const k=st.k++%3,a=sinus(t);conduct(a,{tP:t,av:.1,avRefr:.15,blockHis:k===2});if(k===2)mark(t+.22,'dropped','#c42222');return .8;}],
+ mech:'The block lies below the AV node, in the His–Purkinje system. Conduction is all-or-none, with no warning PR lengthening.',
+ path:['AV-nodal delay is normal and constant','Some impulses fail suddenly in the His bundle / bundle branches','That P wave gets no QRS','Here 3:2 conduction'],
+ ecg:['Constant PR in conducted beats (normal or long)','Sudden non-conducted P waves','QRS often broad (co-existing BBB)'],
+ causes:'Anterior MI, degenerative conduction fibrosis (Lenègre/Lev), cardiac surgery, infiltrative disease.',
+ mx:'High risk of complete heart block and asystole → permanent pacemaker; transcutaneous pacing as a bridge. Atropine often ineffective.',
+ pearl:'Mobitz II is infranodal: it is an indication for pacing.'},
+chb:{name:'Complete heart block',rr:1.65,pl:true,extras:['ESC'],prText:'none',off:[0,.45],
+ gens:[t=>{const a=sinus(t,{cap:'SA node fires → P wave (atria keep their own rate)'});block(P.AV,a+.02);cap(a+.02,'Impulse dies at the AV junction: none reach the ventricles','b');return .72;},
+  t=>{ectopic(t,P.ESC,'ESC',{node:'ESC',rr:1.65,cap:'Ventricular escape focus fires on its own (~36/min) → broad QRS'});mark(t+.03,'escape','#8a2a7a');return 1.65;}],
+ mech:'No atrial impulse reaches the ventricles. Atria and ventricles beat independently (AV dissociation) while a subsidiary escape pacemaker keeps the ventricles going.',
+ path:['SA node fires normally: P waves march on at their own rate','Every impulse dies at the AV junction','A ventricular escape focus fires independently (~35/min)','Escape impulse spreads muscle-to-muscle → broad QRS'],
+ ecg:['P waves regular, QRS regular, no relationship between them','Atrial rate > ventricular rate','Junctional escape: narrow, 40–60/min; ventricular escape: broad, 20–40/min'],
+ causes:'Inferior MI (often transient), anterior MI, idiopathic fibrosis, drugs, hyperkalaemia, Lyme disease, congenital (maternal anti-Ro).',
+ mx:'Atropine 500 µg IV (often ineffective with broad escape), transcutaneous pacing, isoprenaline/adrenaline infusion → temporary transvenous then permanent pacemaker.',
+ pearl:'Cannon a-waves in the JVP: the atria contract against a closed tricuspid valve.'},
+rbbb:{name:'Right bundle branch block',rr:.8,gens:[t=>{conduct(sinus(t),{tP:t,vmode:'RBBB'});return .8;}],
+ mech:'The right bundle is blocked. The LV depolarises normally; the RV is activated late, muscle-to-muscle across the septum.',
+ path:['SA → AV node → His normally','Right bundle fails; left bundle conducts','LV and septum depolarise first (normal start of QRS)','Impulse crosses the septum slowly to the RV → late terminal forces → R′ in V1'],
+ ecg:['QRS ≥ 0.12 s (incomplete 0.10–0.12)','RSR′ “M” in V1–V2','Wide slurred S in I, aVL, V5–V6 (and II)','Secondary T inversion V1–V3'],
+ causes:'Normal variant, PE/RV strain, ASD, RVH, IHD, cardiomyopathy, Brugada.',mx:'Treat the underlying cause; usually no specific treatment.',pearl:'MaRRoW: M in V1, W in V6 = RBBB.'},
+lbbb:{name:'Left bundle branch block',rr:.8,gens:[t=>{conduct(sinus(t),{tP:t,vmode:'LBBB'});return .8;}],
+ mech:'The left bundle is blocked. The RV activates first, the septum depolarises right→left, and the LV is activated late, muscle-to-muscle.',
+ path:['SA → AV node → His normally','Left bundle fails; right bundle conducts','RV depolarises; septum activated from the right side','Wave crawls slowly through the LV → broad, notched QRS'],
+ ecg:['QRS ≥ 0.12 s','Deep broad S/QS in V1 (“W”)','Broad notched R in I, aVL, V5–V6 (“M”), no septal q','Discordant ST–T changes'],
+ causes:'IHD, hypertension, aortic stenosis, dilated cardiomyopathy, degenerative fibrosis. Almost always pathological.',
+ mx:'Find the cause (echo). New LBBB with chest pain → manage as possible STEMI (Sgarbossa criteria). CRT pacing in heart failure with low EF.',
+ pearl:'WiLLiaM: W in V1, M in V6 = LBBB. LBBB masks ST elevation.'},
+pvc:{name:'Ventricular ectopics (PVCs)',rr:.8,pl:true,extras:['FOC'],
+ gens:[t=>{const k=st.k++%4,a=sinus(t);conduct(a,{tP:t,capBlock:'Sinus P meets an AV node made refractory by the PVC → no QRS (compensatory pause)'});
+  if(k===1){ectopic(t+.62,P.FOC,'PVC',{node:'FOC',retro:true,cap:'Irritable LV focus fires early; spreads muscle-to-muscle → broad bizarre QRS'});mark(t+.64,'PVC','#8a2a7a');}return .8;}],
+ mech:'An irritable ventricular focus fires before the next sinus beat. The impulse spreads slowly from muscle cell to muscle cell, not through Purkinje fibres.',
+ path:['Sinus beats conduct normally','Ectopic LV focus fires early','Wave spreads cell-to-cell from the focus → broad bizarre QRS','Retrograde conduction leaves the AV node refractory → next sinus P is blocked','Full compensatory pause, then sinus rhythm resumes'],
+ ecg:['Premature broad (≥ 0.12 s) bizarre QRS','No preceding P wave','T wave opposite in direction to the QRS','Full compensatory pause (R–R around the PVC = 2 × normal)'],
+ causes:'Normal hearts, caffeine, stress; hypokalaemia, hypomagnesaemia, ischaemia, cardiomyopathy, digoxin toxicity.',
+ mx:'Correct K⁺/Mg²⁺, remove triggers; β-blocker if symptomatic; investigate if frequent (echo, Holter).',pearl:'R-on-T PVCs (landing on the previous T wave) can trigger VT/VF.'},
+vt:{name:'Ventricular tachycardia',rr:VTP,pl:true,extras:['vtring','scar'],prText:'none',off:[0,.2],
+ gens:[t=>{tubeAct('vtring',t,VTP);ectopic(t,P.VTX,'VT',{rr:VTP,noTcap:true,cap:'Wave exits the scar circuit and spreads muscle-to-muscle → broad QRS'});cap(t+.13,'…while it keeps circling the scar border (re-entry)','e');return VTP;},
+  t=>{sinus(t,{cap:'Sinus node still fires: P waves are dissociated from the VT'});return .86;}],
+ mech:'Re-entry around a myocardial scar (usually an old MI): the wave circles the border of the scar and exits on every lap, driving the ventricles at 150–250/min.',
+ path:['Impulse circles a slow-conducting channel around the scar','Each exit depolarises the ventricles muscle-to-muscle → broad QRS','Sinus node keeps firing independently: dissociated P waves','His–Purkinje is bypassed'],
+ ecg:['≥ 3 broad complexes (> 0.12 s), regular, > 100/min','AV dissociation (independent P waves)','Capture and fusion beats; extreme axis; concordance in V1–V6'],
+ causes:'IHD/old MI scar, cardiomyopathy, hypokalaemia, hypomagnesaemia, long QT (torsades), drugs.',
+ mx:'Pulseless → CPR and defibrillation (shockable). Pulse with adverse features → synchronised DC cardioversion (up to 3 attempts), then amiodarone 300 mg IV. Stable → amiodarone 300 mg IV over 10–60 min. Correct K⁺/Mg²⁺; ICD long term.',
+ pearl:'A broad-complex tachycardia is VT until proven otherwise.'},
+vf:{name:'Ventricular fibrillation',rr:.8,atext:'—',prText:'—',base:VFb,
+ gens:[t=>{for(let j=0;j<3;j++){const m=V[Math.floor(rnd()*2)];muscle(V,[{p:vpos(m,Math.floor(rnd()*m.n)),t0:t+rnd()*.02,v:3.2,rad:.6}],.11);}return .025;},
+  t=>{sinus(t,{noP:true,cap:'Chaotic wavelets everywhere in the ventricles: no coordinated contraction, no pulse'});return .8;}],
+ mech:'Multiple chaotic wavelets in the ventricles. Nothing depolarises in a coordinated way, so the heart quivers and pumps nothing: cardiac arrest.',
+ path:['Countless small wavefronts wander through the ventricular muscle','Sinus beats and His–Purkinje no longer matter','Muscle quivers; no stroke volume, no pulse'],
+ ecg:['Chaotic irregular deflections of varying amplitude','No identifiable P, QRS or T','Coarse VF → fine VF → asystole with time'],
+ causes:'Acute MI/ischaemia, untreated VT, electrolyte disturbance, electrocution, drugs, cardiomyopathy, channelopathies.',
+ mx:'Shockable: CPR 30:2, immediate defibrillation, 2-minute cycles. Adrenaline 1 mg IV after the 3rd shock, then every 3–5 min; amiodarone 300 mg after the 3rd shock (150 mg after the 5th). Treat the 4 Hs and 4 Ts.',
+ pearl:'Each minute without defibrillation lowers survival by roughly 10%.'}};
+const GROUPS=[['Sinus',['nsr','brady','tachy']],['Atrial',['af','flutter']],['Junctional & SVT',['junc','avnrt','wpw']],['AV blocks',['av1','mob1','mob2','chb']],['Bundle branch blocks',['rbbb','lbbb']],['Ventricular',['pvc','vt','vf']]];
+const SHORT={nsr:'Normal sinus',brady:'Sinus brady',tachy:'Sinus tachy',af:'AF',flutter:'Flutter',junc:'Junctional',avnrt:'AVNRT',wpw:'WPW',av1:'1st degree',mob1:'Mobitz I',mob2:'Mobitz II',chb:'Complete (3rd)',rbbb:'RBBB',lbbb:'LBBB',pvc:'PVCs',vt:'VT',vf:'VF'};
+for(const k in R)R[k].id=k;
+
+/* ---------- labels ---------- */
+const LABS=[['SA node',P.SA],['AV node',P.AV],['Bundle of His',P.HB],['Right bundle',tubes.rbb.curve.getPointAt(.7)],['Left bundle',tubes.laf.curve.getPointAt(.45)],['Purkinje fibres',purkL[2].end],
+ ['RA',V3(-1.45,.95,.35),'ch'],['LA',V3(1.05,1.3,-.4),'ch'],['RV',V3(-.95,-.6,.75),'ch'],['LV',V3(1.15,-.9,.2),'ch'],
+ ['Accessory pathway','x',P.APa,'AP'],['Ectopic focus','x',P.FOC,'FOC'],['Escape focus','x',P.ESC,'ESC'],['Flutter circuit','x',flr.a[8],'flring'],
+ ['Slow pathway','x',tubes.slow.curve.getPointAt(.4),'slow'],['Fast pathway','x',tubes.fast.curve.getPointAt(.6),'fast'],['Scar re-entry','x',vtr.a[14],'scar']].map(a=>{
+ const el=document.createElement('div');el.className='lab'+(a[1]==='x'?' x':a[2]==='ch'?' ch':'');el.textContent=a[0];$('#labels').appendChild(el);
+ return a[1]==='x'?{el,p:a[2],x:a[3]}:{el,p:a[1]};});
+let showLabels=true;
+
+/* ---------- UI ---------- */
+$('#picker').innerHTML=GROUPS.map(([g,ids])=>`<div class="grp"><b>${g}</b><div class="chips">${ids.map(i=>`<button class="chip" type="button" data-r="${i}" aria-pressed="false" title="${R[i].name}">${SHORT[i]}</button>`).join('')}</div></div>`).join('');
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function renderInfo(r){$('#info').innerHTML=`<h2>${esc(r.name)}</h2><p class="mech">${esc(r.mech)}</p>
+<div class="card c1"><h3>What the impulse does</h3><ol>${r.path.map(x=>`<li>${esc(x)}</li>`).join('')}</ol></div>
+<div class="card"><h3>ECG criteria</h3><ul>${r.ecg.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>
+<div class="card"><h3>Causes and management</h3><p><span class="k">Causes</span>${esc(r.causes)}</p><p><span class="k">Management</span>${esc(r.mx)}</p><p class="pearl">${esc(r.pearl)}</p></div>`;}
+function select(id){cur=R[id]||R.nsr;resetState();cur.gens.forEach((g,i)=>st.c[i]=now+.05+((cur.off||[])[i]||0));
+  const ex=cur.extras||[];for(const k of['AP','flring','slow','fast','vtring'])tubes[k].m.visible=ex.includes(k);
+  nodes.FOC.m.visible=ex.includes('FOC');nodes.ESC.m.visible=ex.includes('ESC');scar.visible=ex.includes('scar');
+  for(const l of LABS)l.hidden=l.x&&!ex.includes(l.x);
+  document.querySelectorAll('.chip').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.r===cur.id)));
+  renderInfo(cur);try{history.replaceState(null,'','#'+cur.id);}catch(e){}
+  if(EW)eg.clearRect(0,0,EW,EH);lastDraw=null;lastCap=null;}
+$('#picker').addEventListener('click',e=>{const b=e.target.closest('.chip');if(b)select(b.dataset.r);});
+const playBtn=$('#play');
+function setPlay(p){playing=p;playBtn.textContent=p?'Pause':'Play';}
+playBtn.addEventListener('click',()=>setPlay(!playing));
+document.addEventListener('keydown',e=>{if(e.code==='Space'&&e.target===document.body){e.preventDefault();setPlay(!playing);}});
+$('#speed').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;speed=+b.dataset.s;$('#speed').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));});
+$('#labBtn').addEventListener('click',e=>{showLabels=!showLabels;e.currentTarget.textContent=showLabels?'Labels on':'Labels off';e.currentTarget.setAttribute('aria-pressed',String(showLabels));});
+let autoTurn=!matchMedia('(prefers-reduced-motion: reduce)').matches,yaw=0,pitch=0,yawOff=0;
+const rotBtn=$('#rotBtn');function setRot(v){autoTurn=v;rotBtn.textContent=v?'Auto-turn on':'Auto-turn off';rotBtn.setAttribute('aria-pressed',String(v));}
+setRot(autoTurn);rotBtn.addEventListener('click',()=>setRot(!autoTurn));
+$('#resetBtn').addEventListener('click',()=>{yaw=0;pitch=0;yawOff=0;});
+$('#musc').addEventListener('input',e=>{const v=e.target.value/100;for(const o of meshes){o.bm.opacity=o.op*v;o.bm.visible=v>0;o.gm.opacity=.35+.65*v;}});
+let drag=null;
+cvs.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY};cvs.setPointerCapture(e.pointerId);if(autoTurn){yaw+=yawOff;yawOff=0;setRot(false);}});
+cvs.addEventListener('pointermove',e=>{if(!drag)return;yaw+=(e.clientX-drag.x)*.008;pitch=Math.max(-1,Math.min(1,pitch+(e.clientY-drag.y)*.006));drag={x:e.clientX,y:e.clientY};});
+const endDrag=()=>drag=null;cvs.addEventListener('pointerup',endDrag);cvs.addEventListener('pointercancel',endDrag);
+
+/* ---------- sizing ---------- */
+let SW=1,SH=1;
+new ResizeObserver(()=>{SW=stage.clientWidth;SH=stage.clientHeight;renderer.setSize(SW,SH,false);camera.aspect=SW/SH;
+  camera.position.set(0,0,SW/SH>=.78?8.4:8.4*.78/(SW/SH));camera.updateProjectionMatrix();}).observe(stage);
+const strip=$('#strip'),ecg=$('#ecg'),eg=ecg.getContext('2d'),grid=$('#grid'),gg=grid.getContext('2d');
+let EW=0,EH=0,LH=0,WIN=5,pxmm=1,pps=1,lastDraw=null;
+function sizeECG(){const w=strip.clientWidth;if(!w)return;EW=w;WIN=w>640?5:3;pxmm=EW/(WIN/.04);pps=EW/WIN;
+  LH=Math.round(Math.max(110,Math.min(200,pxmm*22)));EH=LH*2;strip.style.height=EH+'px';const d=Math.min(window.devicePixelRatio||1,2);
+  for(const[c,g]of[[ecg,eg],[grid,gg]]){c.width=EW*d;c.height=EH*d;g.setTransform(d,0,0,d,0,0);}
+  gg.fillStyle='#fcefea';gg.fillRect(0,0,EW,EH);
+  for(let i=0,x=0;x<=EW;i++,x=i*pxmm){gg.strokeStyle=i%5?'rgba(232,120,120,.25)':'rgba(214,72,72,.55)';gg.lineWidth=i%5?.6:1;gg.beginPath();gg.moveTo(x,0);gg.lineTo(x,EH);gg.stroke();}
+  for(let i=0,y=0;y<=EH;i++,y=i*pxmm){gg.strokeStyle=i%5?'rgba(232,120,120,.25)':'rgba(214,72,72,.55)';gg.lineWidth=i%5?.6:1;gg.beginPath();gg.moveTo(0,y);gg.lineTo(EW,y);gg.stroke();}
+  gg.strokeStyle='rgba(150,40,40,.6)';gg.lineWidth=1.5;gg.beginPath();gg.moveTo(0,LH);gg.lineTo(EW,LH);gg.stroke();
+  gg.fillStyle='#7a2626';gg.font="700 14px 'Barlow Semi Condensed',sans-serif";gg.fillText('Lead II',8,18);gg.fillText('V1',8,LH+18);
+  gg.font="500 12px Barlow,sans-serif";gg.textAlign='right';gg.fillText('25 mm/s · 10 mm/mV',EW-8,EH-8);gg.textAlign='left';
+  eg.clearRect(0,0,EW,EH);lastDraw=null;}
+new ResizeObserver(sizeECG).observe(strip);
+const xOf=t=>((t%WIN+WIN)%WIN)/WIN*EW;
+function ecgV(t,L){let v=.015*Math.sin(t*1.9)+(rnd()-.5)*.014;if(cur.base)v+=cur.base(t,L);
+  for(const c of comps){if(c.L!==L)continue;const d=t-c.c;if(d>-4*c.w&&d<4*c.w)v+=c.a*Math.exp(-.5*(d/c.w)**2);}return v;}
+const yOf=(t,L)=>LH*L+LH*.62-ecgV(t,L)*10*pxmm;
+function drawECG(){if(!EW)return;if(lastDraw===null||now<lastDraw-.01){lastDraw=now;return;}if(now<=lastDraw)return;
+  const step=1/pps;eg.lineWidth=1.7;eg.strokeStyle='#1d1214';eg.lineJoin='round';
+  for(let L=0;L<2;L++){eg.beginPath();let t=lastDraw,px=xOf(t);eg.moveTo(px,yOf(t,L));
+    while(t<now){t=Math.min(now,t+step);const x=xOf(t),y=yOf(t,L);if(x<px)eg.moveTo(x,y);else eg.lineTo(x,y);px=x;}eg.stroke();}
+  const x0=xOf(now)+2,gap=Math.max(14,EW*.025);eg.clearRect(x0,0,gap,EH);if(x0+gap>EW)eg.clearRect(0,0,x0+gap-EW,EH);
+  eg.font="700 13px 'Barlow Semi Condensed',sans-serif";eg.textAlign='center';
+  for(const l of labels2)if(l.t>lastDraw&&l.t<=now){eg.fillStyle=l.col;eg.fillText(l.text,xOf(l.t),30);}
+  eg.textAlign='left';lastDraw=now;}
+
+/* ---------- per-frame visuals ---------- */
+const sm=x=>x*x*(3-2*x);
+function contr(dt,v){const[a,b,c,d]=v?[.04,.16,.3,.46]:[.02,.08,.11,.2];
+  return dt<a?0:dt<b?sm((dt-a)/(b-a)):dt<c?1:dt<d?1-sm((dt-c)/(d-c)):0;}
+function updMuscle(o,rdt){const col=o.g.attributes.color.array,pos=o.g.attributes.position.array,R0=o.rest,L=o.last,K=o.k,c=o.center,v=o.kind==='v',
+  pl=v?.27:.09,amp=v?.085:.1,ease=Math.min(1,rdt*14);
+  for(let i=0;i<o.n;i++){const dt=now-L[i];let f=0,p=0,k=0;
+    if(dt>=0&&dt<1.5){f=Math.exp(-dt/.022);p=dt<pl?1:Math.max(0,1-(dt-pl)/.12);k=contr(dt,v);}
+    p*=.55;const j=i*3;col[j]=f+p*.95;col[j+1]=f*.82+p*.22;col[j+2]=f*.42+p*.07;
+    K[i]+=(k-K[i])*ease;const s=amp*K[i];pos[j]=R0[j]+(c.x-R0[j])*s;pos[j+1]=R0[j+1]+(c.y-R0[j+1])*s;pos[j+2]=R0[j+2]+(c.z-R0[j+2])*s;}
+  o.g.attributes.color.needsUpdate=true;o.g.attributes.position.needsUpdate=true;}
+function updTube(o){if(!o.m.visible)return;const col=o.g.attributes.color.array,L=o.last;
+  for(let k=0;k<o.rows;k++){const dt=now-L[k];let f=0,p=0;if(dt>=0&&dt<.6){f=Math.exp(-dt/.025);p=dt<.12?.5*(1-dt/.12):0;}
+    const r=GOLD[0]+f*.38+p*.3,g=GOLD[1]+f*.55+p*.25,b=GOLD[2]+f*.85+p*.05;for(let j=0;j<9;j++){const q=(k*9+j)*3;col[q]=r;col[q+1]=g;col[q+2]=b;}}
+  o.g.attributes.color.needsUpdate=true;}
+function updNode(n){const m=n.m;if(!m.visible)return;let I=0;
+  n.fires=n.fires.filter(f=>f>now-1);n.holds=n.holds.filter(h=>h.b>now-1);
+  for(const f of n.fires)if(f<=now)I=Math.max(I,Math.exp(-(now-f)/.05));
+  for(const h of n.holds){if(now>=h.a&&now<=h.b)I=Math.max(I,.35+.5*(now-h.a)/(h.b-h.a));else if(now>h.b)I=Math.max(I,.85*Math.exp(-(now-h.b)/.04));}
+  m.material.color.setRGB(n.col[0]+(1-n.col[0])*I,n.col[1]+(.95-n.col[1])*I,n.col[2]+(.75-n.col[2])*I);
+  const s=1+.7*I;m.scale.set(n.sc[0]*s,n.sc[1]*s,n.sc[2]*s);}
+function updSprites(){let si=0;
+  for(const k in tubes){const o=tubes[k];o.items=o.items.filter(it=>it.t0+it.dur>now-.05);if(!o.m.visible)continue;
+    for(const it of o.items){if(now<it.t0)continue;const u=(now-it.t0)/it.dur;if(u>it.stop||si>=sparks.length)continue;
+      const s=sparks[si++];s.visible=true;s.position.copy(o.curve.getPointAt(it.dir>0?u:1-u));s.scale.setScalar(o.spark);}}
+  for(;si<sparks.length;si++)sparks[si].visible=false;
+  blocks=blocks.filter(b=>b.t>now-.6);let xi=0;
+  for(const b of blocks){if(now<b.t||now>b.t+.55||xi>=xs.length)continue;const s=xs[xi++],a=1-(now-b.t)/.55;s.visible=true;s.position.copy(b.p);s.material.opacity=a;s.scale.setScalar(.3*b.s*(1+.3*(1-a)));}
+  for(;xi<xs.length;xi++)xs[xi].visible=false;}
+const tmp=new THREE.Vector3();
+function updLabels(){for(const l of LABS){const vis=showLabels&&!l.hidden;l.el.style.display=vis?'':'none';if(!vis)continue;
+  tmp.copy(l.p);heart.localToWorld(tmp);tmp.project(camera);
+  l.el.style.transform=`translate(${((tmp.x+1)/2*SW).toFixed(1)}px,${((1-tmp.y)/2*SH).toFixed(1)}px) translate(-50%,-150%)`;}}
+const TAGC={a:'#ffcf6b',n:'#f0b23c',v:'#ff7a5c',r:'#b9a5a2',b:'#ff5757',e:'#ff8ad8'};
+let lastCap=null,hudT=0;
+function rate(a){let b=null,c=null;for(let i=a.length-1;i>=0;i--){if(a[i]<=now){if(b===null)b=a[i];else{c=a[i];break;}}}
+  return c===null||now-b>3.2?'—':Math.round(60/(b-c));}
+function lastBefore(a){for(let i=a.length-1;i>=0;i--)if(a[i].t<=now)return a[i];return null;}
+function updHUD(){const hr=rate(qT);$('#hr').textContent=hr;$('#ar').textContent=cur.atext||rate(pT);
+  const p=lastBefore(prs);$('#pr').textContent=cur.prText||(p?p.pr.toFixed(2)+' s':'—');
+  const q=lastBefore(qd);$('#qd').textContent=q&&now-q.t<3.2?q.d.toFixed(2)+' s':'—';
+  let best=null;for(const c of caps)if(c.t<=now&&(!best||c.t>=best.t))best=c;
+  if(best&&best!==lastCap){lastCap=best;$('#cap').textContent=best.text;$('#capDot').style.background=TAGC[best.tag]||'#f0b23c';}
+  if(caps.length>60)caps=caps.filter(c=>c.t>now-2);
+  if(comps.length>300)comps=comps.filter(c=>c.c>now-1);
+  if(labels2.length>40)labels2=labels2.filter(l=>l.t>now-1);
+  for(const a of[qT,pT,prs,qd])if(a.length>40)a.splice(0,a.length-20);}
+
+/* ---------- loop ---------- */
+let lastReal=performance.now();
+function frame(ts){const rdt=Math.min(.05,(ts-lastReal)/1000);lastReal=ts;if(playing)now+=rdt*speed;
+  const look=now+1.2;cur.gens.forEach((g,i)=>{let n=0;while(st.c[i]<look&&n++<300){const t=st.c[i];st.c[i]+=g(t);}});
+  for(const o of meshes){process(o);updMuscle(o,rdt);}
+  for(const k in tubes){process(tubes[k]);updTube(tubes[k]);}
+  for(const k in nodes)updNode(nodes[k]);
+  updSprites();
+  if(autoTurn&&!drag)yawOff=.42*Math.sin(ts*.00022);
+  root.rotation.set(pitch,yaw+yawOff,0);
+  renderer.render(scene,camera);updLabels();drawECG();
+  if(ts-hudT>90){hudT=ts;updHUD();}
+  requestAnimationFrame(frame);}
+select((location.hash||'').slice(1));
+window.addEventListener('hashchange',()=>{const id=location.hash.slice(1);if(R[id]&&id!==cur.id)select(id);});
+requestAnimationFrame(frame);
+}
+}
+</script>
+</body>
+</html>
