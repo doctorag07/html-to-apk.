@@ -1,4 +1,5 @@
 plugins { id("com.android.application") }
+val ksFile = rootProject.file("release.jks")
 android {
     namespace = "com.doctorag.medicinemcq"
     compileSdk = 35
@@ -6,8 +7,24 @@ android {
         applicationId = "com.doctorag.medicinemcq"
         minSdk = 24
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
+    }
+    signingConfigs {
+        if (ksFile.exists()) {
+            create("release") {
+                storeFile = ksFile
+                storePassword = System.getenv("KEYSTORE_PASSWORD")
+                keyAlias = "doctorag"
+                keyPassword = System.getenv("KEYSTORE_PASSWORD")
+            }
+        }
+    }
+    buildTypes {
+        getByName("release") {
+            isMinifyEnabled = false
+            if (ksFile.exists()) signingConfig = signingConfigs.getByName("release")
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
