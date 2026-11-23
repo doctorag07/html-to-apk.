@@ -73,6 +73,33 @@ input[type=range]{accent-color:var(--gold);width:110px;height:44px}
 footer{color:#8d7a77;font-size:13.5px;padding:8px 0 34px}
 @media(max-width:900px){.info{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.info .c1{grid-column:1/-1}.hud{grid-template-columns:repeat(2,auto)}}
 @media(max-width:600px){.info{grid-template-columns:minmax(0,1fr)}.stage{height:440px}.tile span{font-size:18px}.tile.hr span{font-size:22px}.cap{font-size:14.5px}.hint{display:none}.lab{font-size:11.5px}.lab.ch{font-size:13px}}
+
+/* ---------- heart sounds module ---------- */
+.jump{display:inline-flex;align-items:center;gap:8px;margin-top:12px;min-height:40px;padding:0 14px;border-radius:999px;border:1px solid #5a3c44;background:#24161a;color:var(--gold);font:600 15px Barlow,sans-serif;cursor:pointer}
+.hs{border-top:1px solid #2c1d22;margin-top:10px;padding-top:26px}
+.hs>h2{font-size:clamp(28px,3.4vw,38px);line-height:1.08;margin:0 0 6px}
+.hs .sub{margin-bottom:4px}
+.hsTools{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin:6px 0 12px}
+.hsTools .btn.main{min-width:120px}
+.tag{display:inline-flex;align-items:center;min-height:32px;padding:0 10px;border-radius:8px;background:#24161a;border:1px solid #3a2830;font:600 13.5px 'Barlow Semi Condensed',sans-serif;color:#f6dfae}
+.hsGrid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:14px;align-items:start}
+.pcgBox{position:relative;border-radius:14px;overflow:hidden;background:#0e0708;border:1px solid #2a1a1f}
+#pcg{display:block;width:100%}
+.mapBox{background:#0e0708;border:1px solid #2a1a1f;border-radius:14px;padding:10px 10px 12px}
+.mapBox h3{margin:0 0 4px;font-size:17px;color:var(--gold)}
+#chest{display:block;width:100%;aspect-ratio:1/1.08}
+.mapNote{font-size:14px;color:var(--mut);margin:6px 2px 0;line-height:1.4}
+.hsLegend{display:flex;flex-wrap:wrap;gap:6px 16px;margin:10px 0 0;font-size:13.5px;color:var(--mut)}
+.hsLegend i{display:inline-block;width:14px;height:10px;border-radius:3px;vertical-align:0;margin-right:6px}
+.hsInfo{margin:22px 0 10px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.hsInfo h2{grid-column:1/-1;font-size:clamp(24px,2.8vw,30px);margin:0}
+.hsInfo .mech{grid-column:1/-1;margin:-4px 0 0}
+.hsInfo dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:4px 12px}
+.hsInfo dt{font:600 14px 'Barlow Semi Condensed',sans-serif;color:var(--mut);padding-top:2px}
+.hsInfo dd{margin:0}
+.hsNote{font-size:13.5px;color:#8d7a77;margin:8px 0 0}
+@media(max-width:900px){.hsGrid{grid-template-columns:minmax(0,1fr)}.mapBox{max-width:420px}}
+@media(max-width:600px){.hsInfo{grid-template-columns:minmax(0,1fr)}.hsInfo dl{grid-template-columns:minmax(0,1fr)}.hsInfo dt{padding-top:6px}}
 </style>
 </head>
 <body>
@@ -80,6 +107,7 @@ footer{color:#8d7a77;font-size:13.5px;padding:8px 0 34px}
 <header>
 <h1>How the impulse travels: SA node to ventricles, in 17 rhythms</h1>
 <p class="sub">Pick a rhythm and watch the electrical wave move through a 3D heart while Lead II and V1 draw in step. Drag the heart to turn it. Slow motion is on so you can follow each wavefront.</p>
+<button class="jump" id="jumpHs" type="button">♥ Heart sounds &amp; murmurs ↓</button>
 </header>
 
 <nav class="picker" id="picker" aria-label="Rhythms"></nav>
@@ -118,6 +146,37 @@ footer{color:#8d7a77;font-size:13.5px;padding:8px 0 34px}
 </div>
 
 <section class="info" id="info"></section>
+
+<section class="hs" id="hs" aria-labelledby="hsTitle">
+<h2 id="hsTitle">Heart sounds and murmurs</h2>
+<p class="sub">Pick a sound and press Play. The phonocardiogram is drawn under a Lead II ECG so you can time each sound, the valve rows show which valves are open, narrowed or leaking, and the chest map shows where to listen. Headphones help: phone speakers cannot play the lowest sounds (S3, S4, the mitral rumble).</p>
+<nav class="picker" id="hsPicker" aria-label="Heart sounds"></nav>
+<div class="hsTools">
+<button class="btn main" id="hsPlay" type="button">▶ Play sound</button>
+<label class="tl" for="hsVol">Volume <input id="hsVol" type="range" min="0" max="100" value="80"></label>
+<span class="tag" id="hsHead">Diaphragm</span>
+<span class="tag" id="hsPos">Sitting up</span>
+</div>
+<div class="hsGrid">
+<div>
+<div class="pcgBox"><canvas id="pcg" aria-label="Phonocardiogram with ECG and valve timing"></canvas></div>
+<div class="hsLegend">
+<span><i style="background:#f0b23c"></i>Valve open</span>
+<span><i style="background:#f0b23c;height:4px;vertical-align:3px"></i>Narrowed (stenosis)</span>
+<span><i style="background:repeating-linear-gradient(135deg,#ff5757 0 3px,transparent 3px 6px)"></i>Leak (regurgitation)</span>
+<span><i style="background:#ff5757;border-radius:50%;width:10px"></i>Turbulent flow</span>
+<span><i style="background:#2b4a6b"></i>Inspiration</span>
+</div>
+</div>
+<div class="mapBox">
+<h3>Where to listen</h3>
+<canvas id="chest" aria-label="Chest auscultation map"></canvas>
+<p class="mapNote" id="mapNote"></p>
+</div>
+</div>
+<section class="hsInfo" id="hsInfo"></section>
+<p class="hsNote">Sounds are synthesised for teaching, not recordings: timing, pitch range and murmur shape follow the textbook pattern, timbre is simplified. Heart rate 72/min; the strip shows one breath (two beats in, two beats out).</p>
+</section>
 <footer>DoctorAG Educational Resources · teaching simulation, timings simplified for clarity. Drug doses follow Resuscitation Council UK 2021 adult guidance; always check local protocols.</footer>
 </div>
 
@@ -591,6 +650,288 @@ select((location.hash||'').slice(1));
 window.addEventListener('hashchange',()=>{const id=location.hash.slice(1);if(R[id]&&id!==cur.id)select(id);});
 requestAnimationFrame(frame);
 }
+}
+</script>
+<script>
+{
+/* ================= Heart sounds & murmurs ================= */
+const $=s=>document.querySelector(s);
+const SR=22050,T=60/72,NB=4,DUR=T*NB;
+
+/* ---------- synthesis primitives ---------- */
+const K={S1:[88,.028,.05],S2:[135,.016,.05],S3:[62,.036,.02],S4:[56,.03,.02],OS:[330,.007,.6],CL:[470,.005,.7]};
+function thump(out,t,kind,amp){const[f,tau,nz]=K[kind],i0=Math.round(t*SR),L=Math.floor(tau*7*SR);
+  for(let j=0;j<L;j++){const i=((i0+j)%out.length+out.length)%out.length,x=j/SR,e=Math.exp(-x/tau)*(1-Math.exp(-x/.0015));
+    out[i]+=amp*e*(Math.sin(6.2832*f*x)+.45*Math.sin(6.2832*f*2.03*x+.6)+.22*Math.sin(6.2832*f*3.1*x+1.1)+nz*(Math.random()*2-1));}}
+function biquad(x,type,f,Q){const w=6.2832*f/SR,c=Math.cos(w),s=Math.sin(w),al=s/(2*Q);let b0,b1,b2;
+  if(type==='bp'){b0=al;b1=0;b2=-al;}else if(type==='lp'){b0=(1-c)/2;b1=1-c;b2=(1-c)/2;}else{b0=(1+c)/2;b1=-(1+c);b2=(1+c)/2;}
+  const a0=1+al,a1=-2*c,a2=1-al,y=new Float32Array(x.length);let x1=0,x2=0,y1=0,y2=0;
+  for(let i=0;i<x.length;i++){const v=(b0*x[i]+b1*x1+b2*x2-a1*y1-a2*y2)/a0;x2=x1;x1=x[i];y2=y1;y1=v;y[i]=v;}return y;}
+const N=Math.round(DUR*SR);
+const noise=()=>{const a=new Float32Array(N);for(let i=0;i<N;i++)a[i]=Math.random()*2-1;return a;};
+function norm(a){let s=0;for(const v of a)s+=v*v;const r=Math.sqrt(s/a.length)||1;for(let i=0;i<a.length;i++)a[i]/=r;return a;}
+const TEX={};
+(function(){
+  const h1=biquad(noise(),'bp',210,.9),h2=biquad(noise(),'bp',430,1.2),h=new Float32Array(N);
+  for(let i=0;i<N;i++){const t=i/SR;h[i]=(h1[i]+.6*h2[i])*(1+.45*Math.sin(6.2832*68*t));}TEX.harsh=norm(h);
+  TEX.blow=norm(biquad(biquad(noise(),'hp',320,.7),'bp',620,.6));
+  const r=biquad(biquad(noise(),'bp',95,1.6),'lp',220,.7),am=norm(biquad(noise(),'lp',22,.7)),rr=new Float32Array(N);
+  for(let i=0;i<N;i++)rr[i]=r[i]*(1+.6*am[i]);TEX.rumble=norm(rr);
+  TEX.soft=norm(biquad(noise(),'bp',260,.8));})();
+const ENV={
+  cd:(x,p=.45)=>x<p?Math.pow(x/p,1.3):Math.pow((1-x)/(1-p),1.3),
+  hol:x=>Math.min(1,x/.06,(1-x)/.04),
+  dec:x=>Math.min(1,x/.03)*Math.pow(1-x,1.5),
+  cre:x=>Math.pow(x,1.6)*Math.min(1,(1-x)/.05),
+  late:x=>Math.pow(x,.7)*Math.min(1,(1-x)/.06)};
+function murmur(out,a,b,tex,env,amp,peak){const i0=Math.round(a*SR),i1=Math.round(b*SR),src=TEX[tex];
+  for(let i=i0;i<i1;i++){const k=((i%N)+N)%N,x=(i-i0)/(i1-i0);out[k]+=.2*amp*Math.max(0,ENV[env](x,peak))*src[k];}}
+
+/* ---------- beat builders ----------
+   each def.beat(insp) returns {snd:[[kind,t,amp,label]], mur:[[a,b,tex,env,amp,peak]], A2, P2, OS, valves:{st,rg,rgA,rgB}} */
+const L1=i=>i?.88:1, R1=i=>i?1:.55;   /* left-sided louder on expiration, right-sided on inspiration */
+const S=(t,amp=1,lab)=>['S1',t,amp,lab||'S1'];
+const S2one=(t=.32,amp=.9)=>[['S2',t,amp,'S2']];
+const S2split=(a2,p2,aa=.9,pa=.75,named=false)=>named&&(p2-a2>.025||a2-p2>.025)?[['S2',a2,aa,'A2'],['S2',p2,pa,'P2']]:[['S2',a2,aa,'S2'],['S2',p2,pa,'']];
+const D={
+normal:{beat:i=>({snd:[S(0),...S2split(.32,i?.35:.325)],A2:.32,P2:i?.35:.325})},
+split:{beat:i=>{const a=i?.31:.32,p=i?.37:.335;return{snd:[S(0),...S2split(a,p,.9,.75,true)],A2:a,P2:p};}},
+fixed:{beat:i=>({snd:[S(0),...S2split(.31,.37,.9,.75,true)],mur:[[.07,.28,'soft','cd',.32*R1(i)]],A2:.31,P2:.37})},
+reversed:{beat:i=>{const p=i?.335:.3,a=.36;return{snd:[S(0),['S2',p,.75,a-p>.025?'P2':''],['S2',a,.9,a-p>.025?'A2':'S2']],A2:a,P2:p};}},
+s3:{beat:i=>({snd:[S(0),...S2split(.32,i?.35:.33),['S3',.46,.6*L1(i),'S3']],A2:.32,P2:i?.35:.33})},
+s4:{beat:i=>({snd:[['S4',T-.09,.55*L1(i),'S4'],S(0),...S2split(.32,i?.35:.33)],A2:.32,P2:i?.35:.33})},
+as:{beat:i=>({snd:[S(0,.9),['S2',.335,.28,'S2'],['S2',.345,.4,''],['S4',T-.09,.35,'S4']],mur:[[.05,.31,'harsh','cd',1.05*L1(i),.6]],A2:.335,P2:.345,valves:{st:'A'}})},
+ar:{beat:i=>({snd:[S(0,.85),...S2split(.32,i?.35:.33,.8)],mur:[[.326,.66,'blow','dec',.85*L1(i)],[.06,.27,'soft','cd',.3]],A2:.32,P2:i?.35:.33,valves:{rg:'A'}})},
+ms:{beat:i=>({snd:[S(0,1.55),...S2split(.32,i?.35:.33,.85,.85),['OS',.4,.75,'OS']],mur:[[.42,.66,'rumble','dec',1.1*L1(i)],[T-.16,T-.004,'rumble','cre',.95*L1(i)]],A2:.32,P2:i?.35:.33,OS:.4,valves:{st:'M'}})},
+mr:{beat:i=>({snd:[S(0,.5),...S2split(.32,i?.35:.33,.7),['S3',.46,.42*L1(i),'S3']],mur:[[.014,.335,'blow','hol',.85*L1(i)]],A2:.32,P2:i?.35:.33,valves:{rg:'M'}})},
+mvp:{beat:i=>({snd:[S(0),['CL',.17,.65,'MC'],...S2split(.32,i?.35:.33)],mur:[[.18,.322,'blow','late',.7]],A2:.32,P2:i?.35:.33,valves:{rg:'M',rgA:.17}})},
+ts:{beat:i=>({snd:[S(0,1.1),...S2split(.32,i?.35:.33)],mur:[[.41,.63,'rumble','dec',.75*R1(i)],[T-.15,T-.004,'rumble','cre',.75*R1(i)]],A2:.32,P2:i?.35:.33,valves:{st:'T'}})},
+tr:{beat:i=>({snd:[S(0,.75),...S2split(.32,i?.35:.33,.8)],mur:[[.016,.36,'blow','hol',.85*R1(i)]],A2:.32,P2:i?.35:.33,valves:{rg:'T'}})},
+ps:{beat:i=>({snd:[S(0),['CL',.06,i?.18:.75,'EC'],['S2',.31,.85,'A2'],['S2',i?.4:.37,.32,'P2']],mur:[[.075,i?.37:.345,'harsh','cd',.95*(i?1:.7),.55]],A2:.31,P2:i?.4:.37,valves:{st:'P'}})},
+pr:{beat:i=>({snd:[S(0),['S2',.31,.8,'A2'],['S2',i?.35:.335,1.25,'P2']],mur:[[i?.356:.341,.6,'blow','dec',.7*R1(i)]],A2:.31,P2:i?.35:.335,valves:{rg:'P'}})}};
+
+/* ---------- teaching content ---------- */
+const INFO={
+normal:{name:'Normal S1 and S2',area:['M','A'],head:'Diaphragm',pos:'Sitting up, breathing normally',
+ mech:'S1 is closure of the mitral and tricuspid valves as the ventricles start to contract. S2 is closure of the aortic then pulmonary valves as ejection ends. At normal rates systole (S1 → S2) is the shorter gap and diastole the longer one.',
+ when:'S1 just after the QRS (with the carotid upstroke); S2 at the end of the T wave',what:'“Lub” (S1, lower, longer) – “dub” (S2, higher, crisper)',where:'S1 loudest at the apex; S2 loudest at the base (2nd intercostal spaces)',rad:'—',
+ exam:'Time every sound against the carotid pulse: S1 comes just before it. Loud S1: mitral stenosis, short PR, tachycardia. Soft S1: long PR, mitral regurgitation, poor LV function, rigid calcified mitral valve. Variable S1: AF, complete heart block.',
+ causes:'Normal.',sev:'Loud or palpable P2 suggests pulmonary hypertension. Soft or absent A2 suggests severe aortic stenosis.',mx:'None.',
+ pearl:'At fast heart rates systole and diastole become similar in length, so never label sounds without feeling the pulse.'},
+split:{name:'Physiological splitting of S2',area:['P'],head:'Diaphragm',pos:'Sitting up, breathing normally',
+ mech:'Inspiration lowers intrathoracic pressure: more blood returns to the right heart, so RV ejection lasts longer and P2 comes later, while pooling in the lungs shortens LV ejection slightly so A2 comes a little earlier. S2 splits on inspiration and fuses on expiration.',
+ when:'Single S2 on expiration; A2 then P2, about 40–60 ms apart, on inspiration',what:'“Lub – da-dub” on breathing in, “lub – dub” on breathing out',where:'Pulmonary area (left 2nd intercostal space)',rad:'—',
+ exam:'Watch the blue inspiration band on the strip: the split opens on the two inspiratory beats and closes on expiration. Easiest to hear in children and young adults.',
+ causes:'Normal. Compare: wide variable split in RBBB and pulmonary stenosis (P2 late); wide fixed split in ASD; reversed split in LBBB, severe AS, HCM and RV pacing.',sev:'—',mx:'None.',
+ pearl:'A fixed or reversed split is never physiological: look for the cause.'},
+fixed:{name:'Wide fixed split S2 (ASD)',area:['P'],head:'Diaphragm',pos:'Sitting up, breathing normally',
+ mech:'In an atrial septal defect the left-to-right shunt keeps the right ventricle volume-loaded, so P2 is late on every beat. The two atria behave as one chamber, so breathing changes filling of both sides equally and the split does not move.',
+ when:'S2 widely split on both inspiration and expiration; soft ejection systolic murmur',what:'Constant “da-dub”; soft flow murmur',where:'Pulmonary area (left 2nd intercostal space)',rad:'—',
+ exam:'RV heave. A large shunt adds a tricuspid flow mid-diastolic murmur at the left lower sternal edge. ECG: RBBB pattern (right axis in secundum, left axis in primum ASD).',
+ causes:'Ostium secundum (commonest); ostium primum (AV canal defects, Down syndrome); sinus venosus.',sev:'Large shunt: RV dilatation, tricuspid flow murmur, pulmonary hypertension; late reversal of the shunt (Eisenmenger syndrome).',
+ mx:'Echo with bubble study or TOE. Close significant shunts with RV dilatation: device closure for secundum, surgery for primum and sinus venosus defects.',
+ pearl:'The systolic murmur in ASD comes from extra flow across a normal pulmonary valve; flow through the defect itself is silent.'},
+reversed:{name:'Reversed (paradoxical) split S2',area:['P'],head:'Diaphragm',pos:'Sitting up, breathing normally',
+ mech:'When LV ejection is delayed, A2 comes after P2. Inspiration delays P2 toward A2, so the split narrows on inspiration and widens on expiration: the opposite of normal.',
+ when:'Split on expiration (P2 then A2), single or narrow on inspiration',what:'Split heard when breathing OUT',where:'Pulmonary area / left sternal edge',rad:'—',
+ exam:'Look for the cause: LBBB on the ECG, slow-rising pulse of severe AS, murmur of HCM, a pacemaker.',
+ causes:'LBBB, RV pacing, severe aortic stenosis, HCM with outflow obstruction, LV ischaemia or failure.',sev:'—',mx:'Treat the cause; new LBBB needs an echo.',
+ pearl:'Reversed split = the LV is late. Wide split = the RV is late.'},
+s3:{name:'Third heart sound (S3)',area:['M'],head:'Bell',pos:'Left lateral position, end-expiration',
+ mech:'A low-pitched sound 0.12–0.16 s after S2, at the end of rapid ventricular filling, as inflowing blood is suddenly decelerated by the ventricular wall. It appears when early filling is rapid or the ventricle is dilated and volume-loaded.',
+ when:'Early diastole, after S2',what:'Dull, low-pitched thud: “Ken-TUC-ky” (S1–S2–S3)',where:'Apex (LV S3); left lower sternal edge for an RV S3, which is louder on inspiration',rad:'—',
+ exam:'Look for heart failure: displaced apex, raised JVP, basal crackles, oedema. An S3 is absent in significant mitral stenosis because filling is slow.',
+ causes:'Physiological: under ~40 years, athletes, pregnancy, high-output states. Pathological: LV systolic failure, dilated cardiomyopathy, severe MR or AR, volume overload.',sev:'A pathological S3 signals high filling pressure.',
+ mx:'Echo; manage heart failure according to guidelines.',pearl:'In an adult over 40, an S3 is heart failure until proven otherwise.'},
+s4:{name:'Fourth heart sound (S4)',area:['M'],head:'Bell',pos:'Left lateral position',
+ mech:'A late-diastolic sound just before S1, made when the atrium contracts forcefully into a stiff, non-compliant ventricle.',
+ when:'Late diastole, just before S1 (after the P wave)',what:'Low-pitched: “TEN-nes-see” (S4–S1–S2)',where:'Apex',rad:'—',
+ exam:'Needs atrial contraction, so it is never heard in AF. There may be a palpable presystolic impulse at the apex.',
+ causes:'LV hypertrophy (hypertension, aortic stenosis, HCM), acute MI or ischaemia, restrictive cardiomyopathy, older age.',sev:'Marker of diastolic dysfunction.',
+ mx:'Treat the cause: blood pressure control; echo for AS or HCM.',pearl:'S4 = stiff ventricle. S3 = full or failing ventricle.'},
+as:{name:'Aortic stenosis',area:['A'],radiate:'carotid',head:'Diaphragm',pos:'Sitting forward, end-expiration',
+ mech:'A narrowed aortic valve makes LV ejection turbulent. Flow, and so the murmur, rises then falls through systole (crescendo–decrescendo). The LV hypertrophies against the obstruction.',
+ when:'Ejection systolic: starts after S1, ends before S2',what:'Harsh, rough, medium-pitched',where:'Aortic area (right 2nd intercostal space)',rad:'Carotids; often also heard at the apex',
+ exam:'Slow-rising, low-volume pulse; narrow pulse pressure; heaving, non-displaced apex; S4. Louder with squatting or leg raise; softer with Valsalva and handgrip (HCM gets louder with Valsalva).',
+ causes:'Age-related calcific degeneration (commonest); bicuspid valve in younger patients (with an ejection click); rheumatic disease (usually with mitral disease).',
+ sev:'Soft or absent A2, late-peaking murmur, reversed split S2, slow-rising pulse, narrow pulse pressure, S4. Loudness does NOT track severity; the murmur softens as the LV fails.',
+ mx:'Echo: valve area < 1.0 cm², mean gradient > 40 mmHg or peak velocity > 4 m/s = severe. Symptomatic severe AS → valve replacement (surgical AVR or TAVI).',
+ pearl:'Symptom triad: angina, syncope, breathlessness. Once symptoms start, survival without valve replacement is short.'},
+ar:{name:'Aortic regurgitation',area:['E'],radiate:'lse',head:'Diaphragm',pos:'Sitting forward, breath held in full expiration',
+ mech:'The aortic valve leaks in diastole, so blood falls back into the LV as aortic pressure drops: a high-pitched murmur that starts at A2 and fades. The extra stroke volume widens the pulse pressure and dilates the LV.',
+ when:'Early diastolic, decrescendo, starts immediately after S2',what:'Soft, high-pitched, blowing',where:'Left sternal edge, 3rd–4th intercostal space (Erb’s point)',rad:'Down the left sternal edge toward the apex',
+ exam:'Collapsing (water-hammer) pulse, wide pulse pressure, displaced hyperdynamic apex. Corrigan, de Musset, Quincke, Traube and Duroziez signs. Ejection systolic flow murmur is common; Austin Flint mid-diastolic rumble at the apex in severe AR. Louder with handgrip.',
+ causes:'Valve: rheumatic, bicuspid, infective endocarditis. Aortic root: hypertension, Marfan syndrome, aortic dissection (acute), syphilitic aortitis, ankylosing spondylitis.',
+ sev:'Long murmur (in chronic AR), very wide pulse pressure with low diastolic BP, Austin Flint murmur, S3, LV dilatation.',
+ mx:'Echo. Valve replacement if symptomatic or if the LV dilates or its function falls. Acute severe AR (endocarditis, dissection) is a surgical emergency.',
+ pearl:'Easily missed: sit the patient forward, ask them to breathe out fully and hold, and listen with the diaphragm.'},
+ms:{name:'Mitral stenosis',area:['M'],head:'Bell',pos:'Left lateral position, end-expiration (exercise makes it louder)',
+ mech:'A narrowed, fused mitral valve obstructs LV filling. After S2 the stiff valve snaps open (opening snap), then turbulent filling gives a low-pitched mid-diastolic rumble. In sinus rhythm, atrial contraction adds a presystolic surge before a loud S1.',
+ when:'Loud S1 → S2 → opening snap → mid-diastolic rumble → presystolic accentuation',what:'Low-pitched rumble',where:'Apex (localised)',rad:'None',
+ exam:'Malar flush, irregularly irregular pulse (AF), tapping non-displaced apex (palpable S1), left parasternal heave and loud P2 with pulmonary hypertension. Presystolic accentuation disappears in AF.',
+ causes:'Rheumatic heart disease (almost all cases; still common in South Asia). Rarely mitral annular calcification or congenital.',
+ sev:'Shorter S2–opening snap interval (high LA pressure opens the valve sooner), longer rumble, signs of pulmonary hypertension. Valve area < 1.5 cm² is significant.',
+ mx:'Echo. AF: rate control and anticoagulation (warfarin, not a DOAC, in moderate–severe rheumatic MS). Diuretics. Percutaneous balloon mitral valvotomy if the valve is suitable; otherwise surgery. Secondary rheumatic fever prophylaxis.',
+ pearl:'The closer the opening snap is to S2, the tighter the stenosis.'},
+mr:{name:'Mitral regurgitation',area:['M'],radiate:'axilla',head:'Diaphragm',pos:'Left lateral position',
+ mech:'The mitral valve leaks throughout systole, so the LV ejects backward into the low-pressure left atrium from the moment it contracts: a pansystolic murmur of even intensity.',
+ when:'Pansystolic, S1 to S2 (may drown S2)',what:'High-pitched, blowing',where:'Apex',rad:'Left axilla',
+ exam:'Soft S1, displaced hyperdynamic apex, S3 if severe. Louder with handgrip, softer with Valsalva.',
+ causes:'Mitral valve prolapse, rheumatic disease, ischaemic papillary muscle dysfunction or rupture after MI (acute), functional (dilated LV), infective endocarditis, HCM.',
+ sev:'S3, displaced apex, soft S1, AF, signs of pulmonary hypertension. Loudness correlates poorly with severity.',
+ mx:'Echo. Diuretics for symptoms. Repair (preferred) or replacement if symptomatic or LV dilatation/dysfunction; transcatheter edge-to-edge repair if surgical risk is high. Acute MR from papillary muscle rupture → emergency surgery.',
+ pearl:'Pansystolic at the apex radiating to the axilla = MR. At the left lower sternal edge, louder on inspiration = TR. Left sternal edge with a thrill = VSD.'},
+mvp:{name:'Mitral valve prolapse',area:['M'],radiate:'axilla',head:'Diaphragm',pos:'Lying, then standing (compare)',
+ mech:'Floppy (myxomatous) leaflets billow back into the LA in mid-systole when the chordae snap tight: a mid-systolic click. If the valve then leaks, a late systolic murmur runs to S2.',
+ when:'Mid-systolic click, then late systolic murmur to S2',what:'Sharp click; blowing murmur',where:'Apex',rad:'Left axilla',
+ exam:'Standing or Valsalva (smaller LV): click earlier, murmur longer and louder. Squatting (bigger LV): click later, murmur shorter.',
+ causes:'Primary myxomatous degeneration; Marfan and Ehlers–Danlos syndromes; osteogenesis imperfecta.',
+ sev:'Can progress to severe MR; risks include chordal rupture, endocarditis and arrhythmias.',
+ mx:'Reassure if mild; β-blocker for palpitations; repair if MR becomes severe.',pearl:'Anything that shrinks the LV brings the click earlier (the same direction as HCM gets louder).'},
+ts:{name:'Tricuspid stenosis',area:['T'],head:'Bell',pos:'Sitting up, listen on inspiration',
+ mech:'A narrowed tricuspid valve obstructs RV filling, giving a diastolic rumble like mitral stenosis but on the right side, so it gets louder on inspiration.',
+ when:'Mid-diastolic rumble with presystolic accentuation',what:'Low-pitched rumble',where:'Left lower sternal edge',rad:'None',
+ exam:'Raised JVP with giant a waves and a slow y descent; hepatomegaly, ascites, oedema; clear lungs.',
+ causes:'Rheumatic (nearly always with mitral disease); carcinoid syndrome.',sev:'—',
+ mx:'Diuretics; balloon valvotomy or surgery, often at the same time as mitral surgery.',pearl:'Right-sided murmurs get louder on inspiration (Carvallo’s sign) because venous return to the right heart rises.'},
+tr:{name:'Tricuspid regurgitation',area:['T'],radiate:'rse',head:'Diaphragm',pos:'Sitting up, listen on inspiration',
+ mech:'The tricuspid valve leaks in systole. Inspiration increases right-heart filling, so the murmur gets louder (Carvallo’s sign).',
+ when:'Pansystolic',what:'Blowing',where:'Left lower sternal edge',rad:'Right of the sternum, toward the liver',
+ exam:'Giant v (cv) waves in the JVP, pulsatile tender liver, peripheral oedema, ascites, RV heave.',
+ causes:'Functional RV dilatation from pulmonary hypertension or left heart disease (commonest); endocarditis in people who inject drugs; rheumatic; Ebstein anomaly; carcinoid; pacing leads.',
+ sev:'Large v waves, pulsatile liver, signs of right heart failure.',mx:'Treat the cause and pulmonary hypertension; diuretics; tricuspid repair during left-sided valve surgery or if severe and symptomatic.',
+ pearl:'Giant v waves rising with each systole in the neck are TR until proven otherwise.'},
+ps:{name:'Pulmonary stenosis',area:['P'],radiate:'shoulder',head:'Diaphragm',pos:'Sitting up, listen on inspiration',
+ mech:'Obstruction to RV outflow gives a crescendo–decrescendo ejection murmur. RV ejection is prolonged, so P2 is late and soft and the split widens. A domed valve gives an ejection click.',
+ when:'Ejection click, ejection systolic murmur, widely split S2 with soft P2',what:'Harsh',where:'Pulmonary area (left 2nd intercostal space)',rad:'Left shoulder and back',
+ exam:'RV heave, prominent a waves in the JVP. On inspiration the murmur gets louder and the split wider, but the ejection click gets SOFTER: the only right-sided sound that does.',
+ causes:'Congenital: isolated valvular PS, tetralogy of Fallot, Noonan syndrome, congenital rubella. Acquired: carcinoid.',
+ sev:'Longer, later-peaking murmur, wider split with soft or inaudible P2, RV hypertrophy.',mx:'Echo; percutaneous balloon valvuloplasty for significant valvular PS.',
+ pearl:'Inspiration in PS: murmur louder, split wider, click softer.'},
+pr:{name:'Pulmonary regurgitation',area:['P'],radiate:'lse',head:'Diaphragm',pos:'Sitting up, listen on inspiration',
+ mech:'The pulmonary valve leaks in diastole. With pulmonary hypertension the high pressure drives a high-pitched decrescendo murmur straight after a loud P2: the Graham Steell murmur.',
+ when:'Early diastolic decrescendo after a loud P2',what:'High-pitched, blowing',where:'Left 2nd–3rd intercostal space',rad:'Down the left sternal edge',
+ exam:'Loud, palpable P2, RV heave, raised JVP. Sounds like AR, but gets louder on inspiration and there is no collapsing pulse.',
+ causes:'Pulmonary hypertension (for example from mitral stenosis); after tetralogy of Fallot repair; endocarditis; carcinoid; dilated pulmonary artery.',
+ sev:'RV dilatation on echo/MRI.',mx:'Treat pulmonary hypertension; pulmonary valve replacement (surgical or transcatheter) for severe PR with RV dilatation, especially after Fallot repair.',
+ pearl:'Graham Steell murmur: think mitral stenosis with pulmonary hypertension.'}};
+const GROUPS=[['Normal & S2 splitting',['normal','split','fixed','reversed']],['Extra sounds',['s3','s4']],['Stenosis',['as','ms','ps','ts']],['Regurgitation & prolapse',['ar','mr','tr','pr','mvp']]];
+const SHORT={normal:'S1 S2',split:'Split S2',fixed:'Fixed split (ASD)',reversed:'Reversed split',s3:'S3',s4:'S4',as:'Aortic stenosis',ms:'Mitral stenosis',ps:'Pulmonary stenosis',ts:'Tricuspid stenosis',ar:'Aortic regurg.',mr:'Mitral regurg.',tr:'Tricuspid regurg.',pr:'Pulmonary regurg.',mvp:'Mitral prolapse'};
+
+/* ---------- build one breath (4 beats) ---------- */
+function build(id){const out=new Float32Array(N),ev=[],beats=[];
+  for(let b=0;b<NB;b++){const t0=b*T,insp=b<2,r=D[id].beat(insp);beats.push({t0,insp,...r});
+    for(const[k,t,a,lab]of r.snd){thump(out,t0+t,k,a);if(lab)ev.push({t:t0+t,lab});}
+    for(const[a,bb,tex,env,amp,pk]of r.mur||[])murmur(out,t0+a,t0+bb,tex,env,amp,pk);}
+  let mx=0;for(const v of out)mx=Math.max(mx,Math.abs(v));for(let i=0;i<N;i++)out[i]*=.85/mx;
+  return{out,ev,beats};}
+
+/* ---------- strip drawing ---------- */
+const pcg=$('#pcg'),pg=pcg.getContext('2d');let W=0,H=0,cur=null,snap=null;
+const LAY={lab:96,resp:[6,20],ecg:[30,64],pcg:[100,128],v0:242,vh:22};
+function ecgAt(t){let v=0;for(const s of[-T,0,T]){const x=((t%T)+T)%T+s;
+  for(const[c,w,a]of[[-.17,.022,.12],[-.045,.006,-.1],[-.03,.008,1],[-.015,.007,-.22],[.21,.045,.26]])v+=a*Math.exp(-.5*((x-c)/w)**2);}return v;}
+function sizeStrip(){const w=pcg.clientWidth;if(!w)return;W=w;H=LAY.v0+LAY.vh*4+10;const d=Math.min(window.devicePixelRatio||1,2);
+  pcg.style.height=H+'px';pcg.width=W*d;pcg.height=H*d;pg.setTransform(d,0,0,d,0,0);drawStatic();}
+const X=t=>LAY.lab+(t/DUR)*(W-LAY.lab-8);
+function drawStatic(){if(!cur||!W)return;const g=pg,s=cur.snd,R=W-8;g.clearRect(0,0,W,H);
+  g.font="600 12.5px 'Barlow Semi Condensed',sans-serif";g.textBaseline='middle';
+  /* respiration */
+  for(const b of s.beats){g.fillStyle=b.insp?'#2b4a6b':'#2a1d21';g.fillRect(X(b.t0),LAY.resp[0],X(b.t0+T)-X(b.t0)-1,LAY.resp[1]-LAY.resp[0]);}
+  g.fillStyle='#cfe2ff';g.fillText('Inspiration',X(.06),13);g.fillStyle='#b9a5a2';g.fillText('Expiration',X(2*T+.06),13);
+  g.fillStyle='#b9a5a2';g.fillText('Breathing',8,13);g.fillText('ECG (II)',8,(LAY.ecg[0]+LAY.ecg[1])/2);g.fillText('Sound',8,LAY.pcg[0]+LAY.pcg[1]/2);
+  /* systole shading */
+  for(const b of s.beats){g.fillStyle='rgba(240,178,60,.07)';g.fillRect(X(b.t0),LAY.ecg[0],X(b.t0+b.A2)-X(b.t0),LAY.v0-LAY.ecg[0]-8);}
+  {const b0=s.beats[0],nar=W<560;g.fillStyle='#8d7a77';g.font="500 11.5px Barlow,sans-serif";g.textAlign='center';g.fillText(nar?'sys':'systole',X(b0.A2/2),LAY.pcg[0]+LAY.pcg[1]-8);g.fillText(nar?'dia':'diastole',X((b0.A2+T)/2),LAY.pcg[0]+LAY.pcg[1]-8);g.textAlign='left';}
+  /* ECG */
+  g.strokeStyle='#ff8a72';g.lineWidth=1.5;g.beginPath();const ey=v=>LAY.ecg[0]+LAY.ecg[1]*.72-v*LAY.ecg[1]*.62;
+  for(let px=LAY.lab;px<=R;px++){const t=(px-LAY.lab)/(R-LAY.lab)*DUR;px===LAY.lab?g.moveTo(px,ey(ecgAt(t))):g.lineTo(px,ey(ecgAt(t)));}g.stroke();
+  /* PCG min/max per column */
+  const mid=LAY.pcg[0]+LAY.pcg[1]/2,amp=LAY.pcg[1]*.46,o=s.out;g.strokeStyle='#ffd9a0';g.lineWidth=1;g.beginPath();
+  for(let px=LAY.lab;px<R;px++){const a=Math.floor((px-LAY.lab)/(R-LAY.lab)*N),b=Math.floor((px+1-LAY.lab)/(R-LAY.lab)*N);let lo=0,hi=0;
+    for(let i=a;i<b;i++){if(o[i]<lo)lo=o[i];if(o[i]>hi)hi=o[i];}g.moveTo(px+.5,mid-hi*amp);g.lineTo(px+.5,mid-lo*amp+.5);}g.stroke();
+  g.strokeStyle='rgba(255,217,160,.25)';g.beginPath();g.moveTo(LAY.lab,mid);g.lineTo(R,mid);g.stroke();
+  /* event labels */
+  g.font="700 12.5px 'Barlow Semi Condensed',sans-serif";g.textAlign='center';let lastX=-99,row=0;
+  for(const e of s.ev.slice().sort((a,b)=>a.t-b.t)){const x=X(e.t);row=x-lastX<22?row+1:0;lastX=x;g.fillStyle=e.lab==='S3'||e.lab==='S4'?'#ffcf6b':e.lab==='OS'||e.lab==='EC'||e.lab==='MC'?'#ff8ad8':'#fff1d6';
+    g.fillText(e.lab,x,LAY.pcg[0]+6+row*13);}g.textAlign='left';
+  /* valves */
+  const rows=[['M','Mitral'],['T','Tricuspid'],['A','Aortic'],['P','Pulmonary']],v=cur.valves||{};
+  rows.forEach(([k,name],ri)=>{const y=LAY.v0+ri*LAY.vh+LAY.vh/2;g.fillStyle='#b9a5a2';g.font="600 12.5px 'Barlow Semi Condensed',sans-serif";g.fillText(name,8,y);
+    g.strokeStyle='#4a3439';g.lineWidth=1;g.beginPath();g.moveTo(LAY.lab,y);g.lineTo(R,y);g.stroke();
+    for(const b of s.beats){let o0,o1;
+      if(k==='M'){o0=b.OS??b.A2+.08;o1=T;}else if(k==='T'){o0=b.P2+.07;o1=T;}else if(k==='A'){o0=.05;o1=b.A2;}else{o0=.035;o1=b.P2;}
+      const st=v.st===k,h=st?4:11;g.fillStyle='#f0b23c';g.fillRect(X(b.t0+o0),y-h/2,X(b.t0+o1)-X(b.t0+o0),h);
+      if(st){g.fillStyle='#ff5757';for(let t=o0+.02;t<o1-.01;t+=.035){g.beginPath();g.arc(X(b.t0+t),y,2.2,0,6.29);g.fill();}}
+      if(v.rg===k){let a,z;if(k==='M'||k==='T'){a=v.rgA??.01;z=(k==='M'?b.A2:b.P2)+.015;}else{a=k==='A'?b.A2:b.P2;z=T;}
+        g.save();g.beginPath();g.rect(X(b.t0+a),y-6,X(b.t0+z)-X(b.t0+a),12);g.clip();g.strokeStyle='#ff5757';g.lineWidth=1.6;
+        for(let xx=X(b.t0+a)-14;xx<X(b.t0+z)+14;xx+=5){g.beginPath();g.moveTo(xx,y+6);g.lineTo(xx+10,y-6);g.stroke();}g.restore();}}});
+  snap=g.getImageData(0,0,pcg.width,pcg.height);}
+new ResizeObserver(sizeStrip).observe(pcg);
+
+/* ---------- chest map ---------- */
+const ch=$('#chest'),cg=ch.getContext('2d');let CW=0,CH=0;
+const AREAS={A:[.42,.27,'Aortic','Right 2nd ICS'],P:[.58,.27,'Pulmonary','Left 2nd ICS'],E:[.59,.37,'Erb’s','Left 3rd ICS'],T:[.555,.52,'Tricuspid','Left lower sternal edge'],M:[.72,.58,'Mitral','Apex, 5th ICS MCL']};
+const RAD={carotid:[.42,.27,.44,.05,'to carotid'],axilla:[.72,.58,.95,.52,'to axilla'],lse:[.59,.37,.66,.6,'down LSE'],shoulder:[.58,.27,.76,.13,'to left shoulder'],rse:[.555,.52,.4,.6,'to right sternal edge']};
+function sizeChest(){const w=ch.clientWidth;if(!w)return;CW=w;CH=Math.round(w*1.08);const d=Math.min(window.devicePixelRatio||1,2);ch.width=CW*d;ch.height=CH*d;cg.setTransform(d,0,0,d,0,0);drawChest(0);}
+function drawChest(pulse){if(!CW||!cur)return;const g=cg,x=u=>u*CW,y=v=>v*CH;g.clearRect(0,0,CW,CH);
+  g.fillStyle='#24161a';g.strokeStyle='#5a3c44';g.lineWidth=1.5;g.beginPath();
+  g.moveTo(x(.4),y(0));g.lineTo(x(.4),y(.08));g.quadraticCurveTo(x(.1),y(.1),x(.06),y(.2));g.lineTo(x(.1),y(.98));g.lineTo(x(.9),y(.98));g.lineTo(x(.94),y(.2));
+  g.quadraticCurveTo(x(.9),y(.1),x(.6),y(.08));g.lineTo(x(.6),y(0));g.closePath();g.fill();g.stroke();
+  g.strokeStyle='#4a3439';g.lineWidth=2;g.beginPath();g.moveTo(x(.47),y(.15));g.quadraticCurveTo(x(.3),y(.12),x(.16),y(.16));g.moveTo(x(.53),y(.15));g.quadraticCurveTo(x(.7),y(.12),x(.84),y(.16));g.stroke();
+  g.lineWidth=1;g.strokeStyle='#3a2830';for(let i=0;i<6;i++){const yy=.22+i*.085;g.beginPath();g.moveTo(x(.47),y(yy));g.quadraticCurveTo(x(.3),y(yy+.02),x(.14),y(yy+.1));g.moveTo(x(.53),y(yy));g.quadraticCurveTo(x(.7),y(yy+.02),x(.86),y(yy+.1));g.stroke();}
+  g.fillStyle='#3a2830';g.beginPath();g.roundRect?g.roundRect(x(.47),y(.15),x(.06),y(.5),6):g.rect(x(.47),y(.15),x(.06),y(.5));g.fill();
+  g.setLineDash([4,4]);g.strokeStyle='#5a3c44';g.beginPath();g.moveTo(x(.72),y(.16));g.lineTo(x(.72),y(.9));g.stroke();g.setLineDash([]);
+  g.fillStyle='#8d7a77';g.font="500 11px Barlow,sans-serif";g.textAlign='center';g.fillText('MCL',x(.72),y(.93));
+  g.font="700 13px 'Barlow Semi Condensed',sans-serif";g.fillText('R',x(.1),y(.06));g.fillText('L',x(.9),y(.06));
+  const inf=INFO[cur.id],act=inf.area;
+  if(inf.radiate){const[a,b,c,d,lab]=RAD[inf.radiate];g.strokeStyle='#ff8ad8';g.fillStyle='#ff8ad8';g.lineWidth=2.5;g.setLineDash([6,4]);g.beginPath();g.moveTo(x(a),y(b));g.lineTo(x(c),y(d));g.stroke();g.setLineDash([]);
+    const ang=Math.atan2(y(d)-y(b),x(c)-x(a));g.beginPath();g.moveTo(x(c),y(d));g.lineTo(x(c)-11*Math.cos(ang-.45),y(d)-11*Math.sin(ang-.45));g.lineTo(x(c)-11*Math.cos(ang+.45),y(d)-11*Math.sin(ang+.45));g.fill();
+    g.font="600 12px 'Barlow Semi Condensed',sans-serif";g.textAlign='center';const tw=g.measureText(lab).width,mx=Math.min(CW-tw/2-4,Math.max(tw/2+4,(x(a)+x(c))/2)),my=(y(b)+y(d))/2+(Math.abs(d-b)<.15?-12:0);
+    g.fillStyle='#0e0708cc';g.fillRect(mx-tw/2-3,my-9,tw+6,15);g.fillStyle='#ff8ad8';g.fillText(lab,mx,my+2);}
+  for(const k in AREAS){const[a,b,name]=AREAS[k],on=act.includes(k),r=on?11+pulse*7:7;
+    if(on){g.fillStyle=`rgba(240,178,60,${.25+.35*pulse})`;g.beginPath();g.arc(x(a),y(b),r+8,0,6.29);g.fill();}
+    g.fillStyle=on?'#f0b23c':'#5a3c44';g.beginPath();g.arc(x(a),y(b),on?10:7,0,6.29);g.fill();
+    g.fillStyle=on?'#251405':'#b9a5a2';g.font="700 12px 'Barlow Semi Condensed',sans-serif";g.textAlign='center';g.textBaseline='middle';g.fillText(k,x(a),y(b)+.5);
+    if(on){g.fillStyle='#f7e5c4';g.font="600 12.5px 'Barlow Semi Condensed',sans-serif";const left=a<.5;g.textAlign=left?'right':'left';g.fillText(name,x(a)+(left?-18:18),y(b));}}
+  g.textAlign='left';g.textBaseline='alphabetic';}
+new ResizeObserver(sizeChest).observe(ch);
+
+/* ---------- info cards ---------- */
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function renderInfo(id){const r=INFO[id],dl=a=>'<dl>'+a.filter(([,v])=>v&&v!=='—').map(([k,v])=>`<dt>${k}</dt><dd>${esc(v)}</dd>`).join('')+'</dl>';
+  $('#hsInfo').innerHTML=`<h2>${esc(r.name)}</h2><p class="mech">${esc(r.mech)}</p>
+  <div class="card"><h3>What you hear</h3>${dl([['Timing',r.when],['Sound',r.what],['Best heard',r.where],['Radiation',r.rad],['Technique',r.head+'; '+r.pos.toLowerCase()]])}</div>
+  <div class="card"><h3>Examination and manoeuvres</h3><p>${esc(r.exam)}</p></div>
+  <div class="card"><h3>Causes</h3><p>${esc(r.causes)}</p>${r.sev&&r.sev!=='—'?`<p><span class="k">Severity clues</span>${esc(r.sev)}</p>`:''}</div>
+  <div class="card"><h3>Management</h3><p>${esc(r.mx)}</p><p class="pearl">${esc(r.pearl)}</p></div>`;
+  $('#hsHead').textContent=r.head;$('#hsPos').textContent=r.pos;
+  $('#mapNote').textContent=r.area.map(k=>AREAS[k][2]+' area: '+AREAS[k][3]).join(' · ')+(r.rad&&r.rad!=='—'&&r.rad!=='None'?' · Radiates: '+r.rad.toLowerCase():'');}
+
+/* ---------- audio ---------- */
+let ac=null,gain=null,src=null,startAt=0,playing=false,raf=0;
+const playBtn=$('#hsPlay');
+function stop(){if(src){try{src.stop();}catch(e){}src.disconnect();src=null;}playing=false;playBtn.textContent='▶ Play sound';cancelAnimationFrame(raf);if(snap)pg.putImageData(snap,0,0);drawChest(0);}
+function start(){if(!ac){const C=window.AudioContext||window.webkitAudioContext;if(!C){playBtn.textContent='Audio not supported';return;}ac=new C();gain=ac.createGain();gain.connect(ac.destination);}
+  if(ac.state==='suspended')ac.resume();if(src)stop();
+  const buf=ac.createBuffer(1,N,SR);buf.getChannelData(0).set(cur.snd.out);src=ac.createBufferSource();src.buffer=buf;src.loop=true;src.connect(gain);
+  gain.gain.value=($('#hsVol').value/100)**1.5;startAt=ac.currentTime+.05;src.start(startAt);playing=true;playBtn.textContent='■ Stop sound';tick();}
+function tick(){if(!playing)return;const t=((ac.currentTime-startAt)%DUR+DUR)%DUR;
+  if(snap){pg.putImageData(snap,0,0);const x=X(t);pg.fillStyle='rgba(255,255,255,.85)';pg.fillRect(x-1,LAY.resp[0],2,H-LAY.resp[0]-4);}
+  const bt=t%T;drawChest(Math.max(0,1-bt/.18));raf=requestAnimationFrame(tick);}
+playBtn.addEventListener('click',()=>playing?stop():start());
+$('#hsVol').addEventListener('input',e=>{if(gain)gain.gain.value=(e.target.value/100)**1.5;});
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&playing)stop();});
+
+/* ---------- picker ---------- */
+$('#hsPicker').innerHTML=GROUPS.map(([g,ids])=>`<div class="grp"><b>${g}</b><div class="chips">${ids.map(i=>`<button class="chip" type="button" data-h="${i}" aria-pressed="false">${SHORT[i]}</button>`).join('')}</div></div>`).join('');
+function choose(id){const was=playing;cur={id,valves:null,snd:build(id)};cur.valves=cur.snd.beats[0].valves||null;
+  document.querySelectorAll('#hsPicker .chip').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.h===id)));
+  renderInfo(id);drawStatic();drawChest(0);if(was)start();}
+$('#hsPicker').addEventListener('click',e=>{const b=e.target.closest('.chip');if(b)choose(b.dataset.h);});
+$('#jumpHs').addEventListener('click',()=>$('#hs').scrollIntoView({behavior:'smooth'}));
+choose('normal');
+window.__hs={build,D,INFO};
 }
 </script>
 </body>

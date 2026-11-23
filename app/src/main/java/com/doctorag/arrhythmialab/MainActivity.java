@@ -38,6 +38,9 @@ public class MainActivity extends Activity {
 
     @Override protected void onSaveInstanceState(Bundle out) { super.onSaveInstanceState(out); web.saveState(out); }
 
+    @Override protected void onPause() { web.onPause(); super.onPause(); }
+    @Override protected void onResume() { super.onResume(); web.onResume(); }
+
     @Override
     public void onBackPressed() {
         if (web.canGoBack()) web.goBack(); else super.onBackPressed();
