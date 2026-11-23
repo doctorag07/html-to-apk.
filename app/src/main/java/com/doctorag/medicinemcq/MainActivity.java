@@ -1,4 +1,4 @@
-package com.doctorag.arrhythmialab;
+package com.doctorag.medicinemcq;
 
 import android.app.Activity;
 import android.content.Intent;
@@ -15,13 +15,16 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
+        getWindow().setStatusBarColor(0xFF0B2545);
+        getWindow().setNavigationBarColor(0xFF0B2545);
         web = new WebView(this);
+        web.setBackgroundColor(0xFFF3F5F9);
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
-        s.setDomStorageEnabled(true);
+        s.setDomStorageEnabled(true);          // localStorage keeps progress
         s.setAllowFileAccess(true);
         s.setAllowFileAccessFromFileURLs(true);
-        s.setMediaPlaybackRequiresUserGesture(false);
+        s.setTextZoom(100);                    // keep layout stable with large system font
         web.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
